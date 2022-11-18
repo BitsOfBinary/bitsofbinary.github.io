@@ -1,0 +1,9 @@
+---
+layout: post
+title: "Introduction"
+date: 2022-11-18 21:51:00 -0000
+categories: introduction
+---
+
+# Hello world!
+This will be the location I use for any blog posts I want to write! The layout of the site may change drastically while I tinker with things, but I will aim to keep the content up here.
