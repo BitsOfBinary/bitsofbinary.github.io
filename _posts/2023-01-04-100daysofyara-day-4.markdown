@@ -46,4 +46,4 @@ rule SessionManager_IIS_Backdoor_PDB_Path_Segments {
         pe.pdb_path endswith "\\sessionmanagermodule.pdb"
 }
 ```
-Of course you could write a rule that looks for these strings in general within a sample, but the regex `\t\t[0-9]\` might not perform as efficiently on larger samples as opposed to just evaluating on the much smaller PDB path variable.
+Of course you could write a rule that looks for these strings in general within a sample without using the PE module, but the regex `\t\t[0-9]\` might not perform as efficiently on larger samples as opposed to just evaluating on the much smaller PDB path variable.
