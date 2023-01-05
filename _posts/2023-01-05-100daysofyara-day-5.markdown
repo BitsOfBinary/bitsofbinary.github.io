@@ -8,7 +8,7 @@ categories: yara
 # Introducing the YARA LNK module
 The [Windows Shell Link file format](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-shllink/16cb4ca1-9339-4d0c-a68d-bf1d6cc0f943) (or LNK) has been used by threat actors for years for malicious purposes (reference: [https://attack.mitre.org/techniques/T1204/001/](https://attack.mitre.org/techniques/T1204/001/))! Whether to download a next-stage payload, or set persistence on an infected system, the LNK file format can be quite versatile. It has also seen an uptick in use as part of initial infection chains due to Microsoft [disabling macros by default from documents downloaded from the internet](https://learn.microsoft.com/en-us/deployoffice/security/internet-macros-blocked).
 
-With all this combined, I wanted to [put together a YARA module for LNK files](https://github.com/VirusTotal/yara/pull/1732](https://github.com/VirusTotal/yara/pull/1732) to aid defenders in being able to triage, parse, and detect them.
+With all this combined, I wanted to [put together a YARA module for LNK files](https://github.com/VirusTotal/yara/pull/1732) to aid defenders in being able to triage, parse, and detect them.
 
 The next few weeks of posts will go into detail of how to use the module, and some rules that are possible to write using it. Along the way, we'll hopefully learn some cool features of the LNK file format that will be useful to consider in general (check out [Greg Lesnewich's](https://twitter.com/greglesnewich) **#100DaysofYARA** contributions so far [to see some cool LNK rules](https://github.com/g-les/100DaysofYARA/blob/main/100DaysofYARA_2023_Week1_LNKPark.ipynb)).
 
