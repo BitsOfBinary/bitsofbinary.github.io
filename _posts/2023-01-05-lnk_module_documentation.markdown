@@ -272,6 +272,7 @@ The LinkInfo structure provides information necessary to resolve a link target i
 >>> `DRIVE_REMOTE`
 >>> `DRIVE_CDROM`
 >>> `DRIVE_RAMDISK`
+>>
 >> *Example: lnk.link_info.volume_id.drive_type & lnk.DRIVE_FIXED*
 >>
 >> `drive_serial_number`
@@ -311,6 +312,7 @@ The LinkInfo structure provides information necessary to resolve a link target i
 >> Flags that specify the contents of the DeviceNameOffset and NetProviderType fields. Values can be checked by performing a bitwise AND operation with the following constants:
 >>> `VALID_DEVICE`
 >>> `VALID_NET_TYPE`
+>>
 >> *Example: lnk.common_network_relative_link.flags & lnk.VALID_DEVICE*
 >>
 >> `net_name_offset`
@@ -364,6 +366,7 @@ The LinkInfo structure provides information necessary to resolve a link target i
 >>> `WNNC_NET_MFILES`
 >>> `WNNC_NET_MS_NFS`
 >>> `WNNC_NET_GOOGLE`
+>>
 >> *Example: lnk.common_network_relative_link.network_provider_type == lnk.WNNC_NET_GOOGLE*
 >>
 >> `net_name_offset_unicode`
@@ -392,7 +395,8 @@ The LinkInfo structure provides information necessary to resolve a link target i
 >>
 >> `device_name_unicode`
 >>
->> An optional, NULL–terminated, Unicode string that is the Unicode version of the DeviceName string. 
+>> An optional, NULL–terminated, Unicode string that is the Unicode version of the DeviceName string.
+>>
 > `common_path_suffix`
 >
 > A NULL–terminated string, defined by the system default code page, which is used to construct the full path to the link item or link target by being appended to the string in the LocalBasePath field.
@@ -465,6 +469,7 @@ The ConsoleDataBlock structure specifies the display settings to use when a link
 >> `BACKGROUND_GREEN`
 >> `BACKGROUND_RED`
 >> `BACKGROUND_INTENSITY`
+>
 > *Example: lnk.console_data.fill_attributes & lnk.FOREGROUND_BLUE*
 >
 > `popup_fill_attributes`
@@ -526,6 +531,7 @@ The ConsoleDataBlock structure specifies the display settings to use when a link
 >> `TMPF_VECTOR`
 >> `TMPF_TRUETYPE`
 >> `TMPF_DEVICE`
+>
 > `font_weight`
 >
 > An unsigned integer that specifies the stroke weight of the font used in the console window.
@@ -826,8 +832,8 @@ The VistaAndAboveIDListDataBlock structure specifies an alternate IDList that ca
 >
 > A zero-based array of ItemIDs structures. The data stored in a given ItemID is defined by the source that corresponds to the location in the target namespace of the preceding ItemIDs. This data uniquely identifies the items in that part of the namespace. Each ItemID has the following members:
 >> `data`
->
-> The shell data source-defined data that specifies an item.
+>>
+>> The shell data source-defined data that specifies an item.
 >>
 >> `size`
 >>
