@@ -23,7 +23,9 @@ sudo make install
 
 You can optionally run `make check` to see if all the tests pass for YARA as well, although if you're able to run `yara --help` at this stage as see output then you'll know it has compiled and installed correctly!
 
-The LNK module is available for any operating system, so you can compile it as normal for Linux/macOS, or use the Visual Studio projects to build it for Windows. You can test if it the LNK module itself is working properly by trying to run the following rule and making sure there are no errors:
+The LNK module is available for any operating system, so you can compile it as normal for Linux/macOS, or use the Visual Studio projects to build it for Windows. [@r0ny_123](https://twitter.com/r0ny_123) also pointed out to me that you can grab Windows binaries from the AppVeyor builds (i.e. part of the regular CI/CD applied to YARA), e.g.: [https://ci.appveyor.com/project/plusvic/yara/build/job/wthlb30bklmlns0a/artifacts](https://ci.appveyor.com/project/plusvic/yara/build/job/wthlb30bklmlns0a/artifacts)
+
+You can test if it the LNK module itself is working properly by trying to run the following rule and making sure there are no errors:
 ```
 import "lnk"
 
