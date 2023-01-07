@@ -15,7 +15,7 @@ rule test {
         filesize > 0
 }
 ```
-And run the command `yara -D test_lnk.yar tests/data/lnk-standard` (where `lnk-standard` is provided in the [LNK documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-shllink/16cb4ca1-9339-4d0c-a68d-bf1d6cc0f943), you should see the following output:
+And run the command `yara -D test_lnk.yar tests/data/lnk-standard` (where `lnk-standard` is provided in the [LNK documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-shllink/16cb4ca1-9339-4d0c-a68d-bf1d6cc0f943)), you should see the following output:
 ```
 lnk
         is_malformed = 0
