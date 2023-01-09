@@ -87,6 +87,8 @@ rule Heuristic_LNK_Zeroed_Header_Timestamp {
 ```
 This is possible to do due to the fixed offsets in the LNK header, but makes for a more verbose rule!
 
+(EDIT: it actually looks fairly common that LNKs will have no timestamps; go figure!)
+
 ## Think about timestamps in different ways
 Timestamp anomalies can lead to some really interesting rules! For example, check out [Costin Raiu's](https://twitter.com/craiu) slides from a [presentation on writing good YARA rules](https://www.slideshare.net/KasperskyLabGlobal/upping-the-apt-hunting-game-learn-the-best-yara-practices-from-kaspersky), where slides 48-50 describe how it is possible to track TripleFantasy based on an impossible timestamp in a PE.
 
