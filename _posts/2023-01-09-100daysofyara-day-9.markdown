@@ -59,8 +59,6 @@ rule Heuristic_LNK_Empty_Timestamp {
 
 This last rule can be written in pure YARA as follows:
 ```
-import "lnk"
-
 rule Heuristic_LNK_Zeroed_Header_Timestamp {
     meta:
         description = "Detects an LNK file with a creation/write/access timestamp that has been zeroed out"
