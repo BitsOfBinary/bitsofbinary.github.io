@@ -69,17 +69,19 @@ rule Heuristic_LNK_Zeroed_Header_Timestamp {
         uint32(8) == 0x00000000 and
         uint32(12) == 0x000000C0 and
         uint32(16) == 0x46000000 and
-        // Creation timestamp
         (
-            uint32(28) == 0 and uint32(32) == 0
-        ) or
-        // Access timestamp
-        (
-            uint32(36) == 0 and uint32(40) == 0
-        ) or
-        // Write timestamp
-        (
-            uint32(44) == 0 and uint32(48) == 0
+            // Creation timestamp
+            (
+                uint32(28) == 0 and uint32(32) == 0
+            ) or
+            // Access timestamp
+            (
+                uint32(36) == 0 and uint32(40) == 0
+            ) or
+            // Write timestamp
+            (
+                uint32(44) == 0 and uint32(48) == 0
+            )
         )
 }
 ```
