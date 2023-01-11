@@ -1,0 +1,33 @@
+---
+layout: post
+title: "100 Days of YARA - Day 11"
+date: 2023-01-11 00:00:00 -0000
+categories: yara
+---
+
+# LNK Hotkeys
+While I'm not sure how much value this will have from a threat hunting perspective, LNK files can be run via keyboard shortcuts. Maybe you find a threat actor has a particular shortcut it likes? You can track that with YARA:
+```
+import "lnk"
+
+rule Heuristic_LNK_using_Shortcut_F5 {
+    meta:
+        description = "Detects LNKs using the keyboard shortcut 'F5'"
+        
+    condition:
+        lnk.hotkey == "F5"
+}
+```
+
+There is also a corresponding `hotkey_modifier_flags` value that specifies if any/a combination of `HOTKEYF_SHIFT`, `HOTKEYF_CONTROL`, or `HOTKEYF_ALT` need to be pressed to activate the hotkey:
+```
+import "lnk"
+
+rule Heuristic_LNK_using_Shift_Modifier {
+    meta:
+        description = "Detects LNKs using a keyboard shortcut, with modifier shift"
+        
+    condition:
+        lnk.hotkey_modifier_flags & lnk.HOTKEYF_SHIFT
+}
+```
