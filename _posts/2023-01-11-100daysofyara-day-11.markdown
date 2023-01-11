@@ -31,3 +31,17 @@ rule Heuristic_LNK_using_Shift_Modifier {
         lnk.hotkey_modifier_flags & lnk.HOTKEYF_SHIFT
 }
 ```
+
+A potential way to hunt for interesting LNK samples may be to look for ones using common keyboard shortcuts for the LNK shortcut. For example, I find myself using `Ctrl-C` a lot to copy text, so perhaps a threat actor could abuse that to delay execution of an LNK dropped to my system until I next pressed `CTRL-C`?
+```
+import "lnk"
+
+rule Heuristic_LNK_using_Hotkey_Ctrl_C {
+    meta:
+        description = "Detects LNKs using the keyboard hotkey Ctrl-C"
+        
+    condition:
+        lnk.hotkey == "C" and 
+        lnk.hotkey_modifier_flags & lnk.HOTKEYF_CONTROL
+}
+```
