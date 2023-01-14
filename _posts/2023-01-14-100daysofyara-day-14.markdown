@@ -1,0 +1,43 @@
+---
+layout: post
+title: "100 Days of YARA - Day 14"
+date: 2023-01-14 00:00:00 -0000
+categories: yara
+---
+
+# LNK LinkInfo - Part 3
+The `LocalBasePath` variable which is `used to construct the full path to the link item or link target` can another good indicator. This variable will either point to the file you want to open with the shortcut, or to the binary you wish to execute with a shortcut (minus the command line arguments, that's in another variable that we'll get to later). For example, looking for a specific path:
+```
+import "lnk"
+
+rule LNK_LocalBasePath_Example {
+    condition:
+        lnk.link_info.local_base_path == "C:\\test\\a.txt"
+}
+```
+
+Or, maybe for more heuristic rules:
+```
+import "lnk"
+
+rule Heuristic_LNK_LocalBasePath_in_TEMP {
+    meta:
+        description = "Detects LNK files with a local base path pointing at the %TEMP% folder"
+        
+    condition:
+        lnk.link_info.local_base_path icontains "TEMP"
+}
+```
+
+Generally, if you're looking for execution of non-standard binaries via LNKs, this variable will be useful for you, e.g.:
+```
+import "lnk"
+
+rule Heuristic_LNK_LocalBasePath_mshta {
+    meta:
+        description = "Detects LNK files pointing at mshta"
+        
+    condition:
+        lnk.link_info.local_base_path icontains "mshta"
+}
+```
