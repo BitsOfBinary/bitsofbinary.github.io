@@ -1,0 +1,49 @@
+---
+layout: post
+title: "100 Days of YARA - Day 17"
+date: 2023-01-17 00:00:00 -0000
+categories: yara
+---
+
+# LNK StringData - Part 2
+The `RELATIVE_PATH`, `WORKING_DIR` and `COMMAND_LINE_ARGUMENTS` are all somewhat related `StringData` entries. That is, they collectively describe the filename, directory, and command line arguments for the file the LNK is targeting. These can lead to a lot of useful data points from a detection perspective; particularly `COMMAND_LINE_ARGUMENTS`.
+
+In fact, a lot of current open source YARA rules implicitly use these fields, even if they don't target them directly. [Bart's LNK ruleset](https://github.com/bartblaze/Yara-rules/blob/master/rules/generic/LNK_Ruleset.yar) contains rules looking for references to scripting languages (i.e. in the command line), long relative paths, and references to binaries used to execute files (such as `rundll32.exe`).
+
+Many different types of YARA rules for LNKs are possible without the LNK module, and that's a good thing! However, I hope that these fields being exposed directly through a YARA module will allow us all to be much more specific in the types of rules we want to write.
+
+So for instance, if we want to look for `/c` in a command line argument of an LNK file (i.e. to run them command then terminate the instance of `cmd.exe`), this is currently a bit harder to specify without it potentially being more false positive-prone (and having some performance concerns):
+```
+rule Heuristic_LNK_Slash_c_In_Command_Line {
+    meta:
+        description = "Detects LNK files that have '/c' in its command line"
+        
+    strings:
+        $ = "/c" ascii wide
+        
+    condition:
+        uint32be(0) == 0x4C000000 and
+        uint32be(4) == 0x01140200 and
+        uint32be(8) == 0x00000000 and
+        uint32be(12) == 0xC0000000 and
+        uint32be(16) == 0x00000046 and
+        any of them
+}
+```
+
+However, using the LNK module, we can be more precise, and hopefully avoid looking in large files for all occurances of `/c`:
+```
+import "lnk"
+
+rule Heuristic_LNK_Slash_c_In_Command_Line {
+    meta:
+        description = "Detects LNK files that have '/c' in its command line"
+        
+    condition:
+        lnk.command_line_arguments contains "/\\x00c"
+}
+```
+
+## Asides
+- The benefit of using the LNK module is we can drop the condition using all the `uint32be` statements checking whether a file is an LNK, as the module will guarantee that the file is an LNK if the field `lnk.command_line_arguments` is present
+- At the moment you can see an annoying design of LNKs in that the `StringData` fields are either unicode, or whatever the default code page of the system the LNK is generated on is. This means we have to include null characters in the string to check. While I'd like the module to convert these fields to ASCII, this could lose information that might otherwise be important. Let me know what you think about having something like a `lnk.command_line_arguments_ascii` field. Potentially another solution would be to add support to YARA for wide character string comparisons, such as `lnk.command_line_arguments contains L"/c"` (`L` is the default syntax used to define wide character strings in C).
