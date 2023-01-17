@@ -47,3 +47,5 @@ rule Heuristic_LNK_Slash_c_In_Command_Line {
 ## Asides
 - The benefit of using the LNK module is we can drop the condition using all the `uint32be` statements checking whether a file is an LNK, as the module will guarantee that the file is an LNK if the field `lnk.command_line_arguments` is present
 - At the moment you can see an annoying design of LNKs in that the `StringData` fields are either unicode, or whatever the default code page of the system the LNK is generated on is. This means we have to include null characters in the string to check. While I'd like the module to convert these fields to ASCII, this could lose information that might otherwise be important. Let me know what you think about having something like a `lnk.command_line_arguments_ascii` field. Potentially another solution would be to add support to YARA for wide character string comparisons, such as `lnk.command_line_arguments contains L"/c"` (`L` is the default syntax used to define wide character strings in C).
+
+**Edit:** I've added an issue to YARA to add `L""` as a modifier: [https://github.com/VirusTotal/yara/issues/1863](https://github.com/VirusTotal/yara/issues/1863)
