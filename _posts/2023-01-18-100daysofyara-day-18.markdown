@@ -1,0 +1,60 @@
+---
+layout: post
+title: "100 Days of YARA - Day 18"
+date: 2023-01-18 00:00:00 -0000
+categories: yara
+---
+
+# LNK StringData - Part 3
+Last but not least in the `StringData` section is `ICON_LOCATION`, which `specifies the location of the icon to be used when displaying a shell link item in an icon view`. This structure has an interesting case study I observed in some [research I conducted into APT41](https://securelist.com/webinars/sas-2021-learning-to-chacha-with-apt41/) as part of my job.
+
+In some LNK files related to the threat actor, it used icon locations such as `.\1.pdf` and `.\1.doc`. While these icon locations may not point to a real file on the system, this value being present will set the icon for the LNK file being that of either a PDF or Microsoft Office file respectively. This can make the LNK file look more convincing.
+
+I [shared the following open source YARA rule](https://github.com/PwCUK-CTO/TheSAS2021-Red-Kelpie/blob/main/yara/red_kelpie.yar) for this technique:
+```
+rule APT41_Icon_Location_LNK : Red_Kelpie
+{
+    meta:
+        description = "Detects LNK files masquerading as PDFs likely used by APT41"
+        TLP = "WHITE"
+        author = "PwC Cyber Threat Operations :: BitsOfBinary"
+        copyright = "Copyright PwC UK 2021 (C)"
+        license = "Apache License, Version 2.0"
+        created_date = "2021-08-26"
+        modified_date = "2021-08-26"
+        revision = "0"
+        hash = "2218904238dc4f8bb5bb838ed4fa779f7873814d7711a28ba59603826ae020aa"
+        hash = "5904bc90aec64b12caa5d352199bd4ec2f5a3a9ac0a08adf954689a58eff3f2a"
+        hash = "c98ac83685cb5f7f72e832998fec753910e77d1b8eee638acb508252912f6cf6"
+        hash = "a44b35f376f6e493580c988cd697e8a2d64c82ab665dfd100115fb6f700bb82a"
+
+    strings:
+        $pdf = ".\\1.pdf" ascii wide
+        $doc = ".\\1.doc" ascii wide
+        
+    condition:
+        uint32be(0) == 0x4C000000 and
+        uint32be(4) == 0x01140200 and
+        uint32be(8) == 0x00000000 and
+        uint32be(12) == 0xC0000000 and
+        uint32be(16) == 0x00000046 and
+        any of them
+}
+```
+
+While in hindsight I don't believe that all samples with these icon locations are related to APT41 (hence the fortunate use of `likely` in the rule description), this rule has generally been useful in finding malicious LNK files masquerading as either PDFs or Word documents. 
+
+If you wanted to recreate this rule with the LNK module, you could do it as such:
+```
+import "lnk"
+
+rule Heuristic_LNK_Icon_Location_Masquerading_as_Doc_or_PDF {
+    condition:
+        lnk.icon_location contains ".\\x00\\\\x001\\x00.\\x00p\\x00d\\x00f" or
+        lnk.icon_location contains ".\\x00\\\\x001\\x00.\\x00d\\x00o\\x00c"
+}
+```
+
+No `strings:` section needed here.
+
+If you're interested in this research into APT41, you can find the slides, full set of YARA rules, and link to the recording here: [https://github.com/PwCUK-CTO/TheSAS2021-Red-Kelpie/blob/main/yara/red_kelpie.yar](https://github.com/PwCUK-CTO/TheSAS2021-Red-Kelpie/blob/main/yara/red_kelpie.yar)
