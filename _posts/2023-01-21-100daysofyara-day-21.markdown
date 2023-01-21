@@ -1,0 +1,98 @@
+---
+layout: post
+title: "100 Days of YARA - Day 21"
+date: 2023-01-21 00:00:00 -0000
+categories: yara
+---
+
+# LNK CONSOLE_PROPS - Part 2
+If we dump the module information using the `-D` flag of the LNK generated in the previous post, we'll see the following for the `CONSOLE_PROPS` section:
+```
+console_data
+    color_table
+            [0] = 789516
+            [1] = 14300928
+            [2] = 958739
+            [3] = 14521914
+            [4] = 2035653
+            [5] = 9967496
+            [6] = 40129
+            [7] = 13421772
+            [8] = 7763574
+            [9] = 16742459
+            [10] = 837142
+            [11] = 14079585
+            [12] = 5654759
+            [13] = 10354868
+            [14] = 10875385
+            [15] = 15921906
+    history_no_dup = 0
+    number_of_history_buffers = 4
+    history_buffer_size = 50
+    auto_position = 1
+    insert_mode = 1
+    quick_edit = 1
+    full_screen = 0
+    cursor_size = 25
+    face_name = "C\x00o\x00n\x00s\x00o"
+    font_weight = 400
+    font_family = 54
+    font_size = 1048576
+    window_origin_y = 0
+    window_origin_x = 0
+    window_size_y = 1
+    window_size_x = 1
+    screen_buffer_size_y = 1
+    screen_buffer_size_x = 1
+    popup_fill_attributes = 245
+    fill_attributes = 7
+    block_signature = 2684354562
+    block_size = 204
+has_console_data = 1
+```
+
+As always, I'd recommend reading through the LNK documentation to make sense of each field (the [docs I've generated for the LNK module](https://bitsofbinary.github.io/yara/2023/01/05/lnk_module_documentation.html) will also give details on each of these). But we're going to focus on recreating Greg's rule highlighted in the previous post.
+
+The fields of interest here are `window_size_x`, `window_size_y`, `screen_buffer_size_x` and `screen_buffer_size_y`, all of which are set to `1`. Therefore, we can recreate Greg's rule using the LNK module as follows:
+```
+import "lnk"
+
+rule Heuristic_LNK_SmallScreenSize {
+    meta:
+        description = "Adaptation of @greglesnewich's rule to find LNKs with a 1x1 console size"
+        
+    condition:
+        lnk.console_data.window_size_x == 1 and
+        lnk.console_data.window_size_y == 1 and
+        lnk.console_data.screen_buffer_size_x == 1 and
+        lnk.console_data.screen_buffer_size_y == 1
+}
+```
+Hopefully the LNK module makes this rule both more readable (Greg did a great job commenting his rule to be clear), and more accessible to those who don't want to go and comb through the LNK documentation like Greg and I both have!
+
+## What else can we do?
+As can be seen in the data available, there are lots of different variables in this structure, including data to do with fonts, number of buffers available, etc.
+
+Maybe we could also write a rule based on the window origin? I realised when re-reading the docs that the following variables in the `CONSOLE_PROPS` section are treated as signed integers:
+- `ScreenBufferSizeX`;
+- `ScreenBufferSizeY`;
+- `WindowSizeX`;
+- `WindowSizeY`;
+- `WindowOriginX`;
+- `WindowOriginY`;
+
+When manually editing the properties of the `cmd.exe` LNK, I could only get the window origin values to go down to `-5`. However, it still may be worth looking for LNKs that have a negative size window origin (maybe in an attempt to hide the LNK off the side of the main window?):
+```
+import "lnk"
+
+rule Heuristic_LNK_Negative_Window_Origin {
+    meta:
+        description = "Detects LNKs that have a negative value window origin location"
+        
+    condition:
+        lnk.console_data.window_origin_x < 0 and
+        lnk.console_data.window_origin_y < 0
+}
+```
+
+There's no doubt that there are more possibilities for detections/clustering of LNKs based on the `CONSOLE_PROPS` values, so I'd be interested to see what people come up with based on the data available!
