@@ -1,0 +1,25 @@
+---
+layout: post
+title: "100 Days of YARA - Day 22"
+date: 2023-01-22 00:00:00 -0000
+categories: yara
+---
+
+# LNK CONSOLE_FE_PROPS
+As you can hopefully see already, these `ExtraData` structure can provide a lot of useful data to work with from a threat hunting perspective. 
+
+Take the next section, `CONSOLE_FE_PROPS` for example. While this structure only really has one variable of interest, the `CodePage` which `specifies a code page language code identifier` may give away a crucial piece of information from an attribution/clustering perspective about the threat actor that generated it! I haven't come across this structure in practice yet, but it could prove to be a useful field to write some heuristic rules based on [different code page values](https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers?source=recommendations).
+
+If you would like to hunt for different LNKs with different `ExtraData` structures, each structure has a boolean variable that will indicate whether it is present or not. For example, `lnk.has_console_fe_data` will be set if the `CONSOLE_FE_PROPS` structure is in the LNK you are targeting.
+
+```
+import "lnk"
+
+rule Heuristic_LNK_With_ConsoleFEData {
+    meta:
+        description = "Detects LNK with ConsoleFEData structure"
+        
+    condition:
+        lnk.has_console_fe_data
+}
+```
