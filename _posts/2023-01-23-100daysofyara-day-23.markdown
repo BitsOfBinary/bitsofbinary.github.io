@@ -1,0 +1,46 @@
+---
+layout: post
+title: "100 Days of YARA - Day 23"
+date: 2023-01-23 00:00:00 -0000
+categories: yara
+---
+
+# LNK TRACKER_PROPS - Part 1
+An `ExtraData` section I want to focus on is `TRACKER_PROPS`; one which people who have tried writing YARA rules for LNKs have likely come up against before. The structure `specifies data that can be used to resolve a link target if it is not found in its original location when the link is resolved`. In particular, the field `MachineID` which `specifies the NetBIOS name of the machine where the link target was last known to reside` can be a very valuable IoC for writing rules for LNKs.
+
+The NetBIOS name is used as a human-friendly way of identifying Windows devices on a network. You can find out what you own NetBIOS name is by running `nbtstat -n`. 
+
+Luckily for us threat hunters, this field is left in by default in a lot of LNK files. This means that if a threat actor generates multiple LNK files from the same Windows instance (whether a physical device or a VM), this `MachineID` will be consistent across them if left unedited.
+
+I've used this value several times to cluster LNK files together. For an example of this, let's take an LNK from the IoCs of a [Palo Alto blog on Trident Ursa](https://unit42.paloaltonetworks.com/trident-ursa/) (more commonly known as Gamaredon Group) and write a rule based on the `MachineID`:
+```
+import "lnk"
+
+rule TridentUrsa_LNK_Machine_ID {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on a unique MachineID"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    condition:
+        lnk.tracker_data.machine_id == "desktop-farl139"
+}
+```
+
+Of course, this rule can also be written without the LNK module by relying just on strings. In a way, this is preferable, as you can hunt for this `MachineID` for LNKs attached to emails, dropped via HTML pages, etc.:
+```
+rule TridentUrsa_LNK_Machine_ID {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on a unique MachineID"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    strings:
+        $ = "desktop-farl139"
+        
+    condition:
+        any of them
+}
+```
