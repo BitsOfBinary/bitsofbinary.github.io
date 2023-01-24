@@ -1,0 +1,34 @@
+---
+layout: post
+title: "100 Days of YARA - Day 24"
+date: 2023-01-24 00:00:00 -0000
+categories: yara
+---
+
+# LNK TRACKER_PROPS - Part 2
+While I think the `MachineID` is the most useful component of the `TRACKER_PROPS`, it isn't the only one we can use! There are two further variables called `Droid` and `DroidBirth` in this structure, which reprsent two GUID values to `used to find the link target with the Link Tracking service`.
+
+I find the LNK documentation to be rather lacking in explaining how these GUIDs actually work/what they represent... Eric Zimmerman's [LECmd tool](https://github.com/EricZimmerman/LECmd)  parses these values out as `VolumeDroid` and `FileDroid`, [which maybe gives a bit more context](https://github.com/EricZimmerman/LECmd/blob/50e7262eb636c6dc7749689716da0dafca26ae0c/LECmd/Program.cs#L1545), although these values aren't specified in the LNK documentation.
+
+Maybe these values are more well know to those who conduct forensics; but despite this, it is yet another value that could be useful in clustering LNK files together! (e.g. `lnk.tracker_data.droid_volume_identifier == "\\x40\\x78\\xC7\\x94\\x47\\xFA\\xC7\\x46\\xB3\\x56\\x5C\\x2D\\xC6\\xB6\\xD1\\x15"`)
+
+I elected in the LNK module to use the terms of `droid_volume` and `droid_file` to align with the LNK parsers, as I think these values are easier to reference.
+
+So taking that example Trident Ursa LNK from the previous post, we can also write a YARA rule for its Droid values as well:
+```
+import "lnk"
+
+rule TridentUrsa_LNK_Droid_Values {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on unique Droid GUIDs"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    condition:
+        lnk.tracker_data.droid_birth_file_identifier == "\xc6\x1f\x17\xb9\xcc\x07\xeb\x11\xb4#\x08\x00'.\x05\x1d" or
+        lnk.tracker_data.droid_birth_volume_identifier == "By\x013NQ\xa0G\xa1\xe0v\x7fh\xb9N\xa1" or
+        lnk.tracker_data.droid_file_identifier == "\xc6\x1f\x17\xb9\xcc\x07\xeb\x11\xb4#\x08\x00'.\x05\x1d" or
+        lnk.tracker_data.droid_volume_identifier == "By\x013NQ\xa0G\xa1\xe0v\x7fh\xb9N\xa1"
+}
+```
