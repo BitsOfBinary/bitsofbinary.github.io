@@ -1,0 +1,61 @@
+---
+layout: post
+title: "100 Days of YARA - Day 25"
+date: 2023-01-25 00:00:00 -0000
+categories: yara
+---
+
+# LNK Module Concessions
+I've already raised this point, but to address something worth talking about, the LNK module isn't always needed for the types of rules I'm showing. For example, you may have asked yourselves that for the two previous posts: "*Why do I need the LNK module to write these LNK rules? Can't I just use pure YARA?*". And you would be right! Here are the same two rules from the previous posts, but without needing the LNK module:
+```
+rule TridentUrsa_LNK_Machine_ID {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on a unique MachineID"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    strings:
+        $ = "desktop-farl139"
+    
+    condition:
+        any of them
+}
+
+rule TridentUrsa_LNK_Droid_Values {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on unique Droid GUIDs"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    strings:
+        $file_identifier = {c6 1f 17 b9 cc 07 eb 11 b4 23 08 00 27 2e 05 1d}
+        $volume_identifier = {42 79 01 33 4e 51 a0 47 a1 e0 76 7f 68 b9 4e a1}
+        
+    condition:
+        any of them
+}
+```
+
+These rules will pick up the same samples as the ones using the LNK module. In some ways you could argue that they're even simpler:
+- They don't need to import any modules
+- They can rely purely on strings
+- If you don't care about validating it's an LNK, you can have much simpler condition
+
+So why go to all the bother of writing a module for LNKs? Because I think that there is a lot of power in being able to manipulate these variables yourself.
+
+For example, if you wanted to write a rule looking for LNKs with a `MachineID` that doesn't start with `desktop-`, how would you do that using pure YARA? It's not so straightforward, whereas the LNK module means you can do this:
+```
+import "lnk"
+
+rule Heuristic_LNK_MachineID_Not_Starting_with_desktop {
+    meta:
+        description = "Detects LNK files that have a MachineID that doesn't start with 'desktop-'"
+        
+    condition:
+        not lnk.tracker_data.machine_id startswith "desktop-"
+}
+```
+
+The LNK module won't always be ideal for your use case; but with the data parsed and served to you for you to work with and write rules on, I think it can give you a lot of flexibility to writing rules of your liking.
