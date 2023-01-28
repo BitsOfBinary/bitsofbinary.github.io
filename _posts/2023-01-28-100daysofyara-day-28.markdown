@@ -1,0 +1,19 @@
+---
+layout: post
+title: "100 Days of YARA - Day 28"
+date: 2023-01-28 00:00:00 -0000
+categories: yara
+---
+
+# Future Considerations for the LNK Module
+Like any of the YARA modules, I don't see the LNK module as being "complete". There have been some fantastic additions to the PE module over the years which create many more opportunities for detection, so there's always more we can add.
+
+First up, I would like for the LNK module to be merged into YARA. This may be a big undertaking in of itself; I wouldn't want it to get merged in without proper review, as to not introduce any vulnerabilities, and to make sure that all the variables are laid out sensibly. However, if it gets merged in I will be happy. If it gets merged in, and available as a default module, I will be very happy.
+
+So what is there to build on top of the LNK module? To start with, there needs to be a little more work done to parse all structures. For example, `lnk.property_store_data` has not had a parser written up for it yet, so that would be next on my todo list.
+
+There are some structures in LNKs that I don't fully understand yet. For example, the `IDList` structures aren't that descriptively documented in the LNK documentation, but look to hold some useful data that we could parse for detection purposes.
+
+Several of the parsed fields are awkward to use in their current format, such as the `StringData` values which are in unicode. I'd like to figure out how better to surface those.
+
+And in general, I'd like to research what other variables would be useful to create in the LNK module. My motivation for this module was to make it as useful as possible for analysts trying to signature LNKs; if there's something you'd want added to make your life easier, I would love to hear about it!
