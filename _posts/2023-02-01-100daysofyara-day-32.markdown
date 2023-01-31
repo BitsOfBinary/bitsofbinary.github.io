@@ -1,0 +1,41 @@
+---
+layout: post
+title: "100 Days of YARA - Day 32"
+date: 2023-02-01 00:00:00 -0000
+categories: yara
+---
+
+# YARA Tip - Hex values in text strings - Part 2
+A benefit of writing hex values in text strings is that it allows you to apply modifiers to these strings. For example, if you wanted to look for all one-byte XOR values of `{AB CD EF 00}`, you would have to compute those values yourself, and write a rule with all 255 versions of them:
+```
+rule One_Byte_XOR_Hex_Strings {
+    meta:
+        description = "Detects all one-byte XOR values of {AB CD EF 00}"
+    
+    strings:
+        $key_01 = {aa cc ee 01}
+        $key_02 = {a9 cf ed 02}
+        // ... truncated for size ...
+        $key_fe = {55 33 11 fe}
+        $key_ff = {54 32 10 ff}
+        
+    condition:
+        any of them
+}
+```
+
+Instead of going to all this effort yourself, and having a rule that has 255 lines of strings, you can use the [xor modifier](https://yara.readthedocs.io/en/stable/writingrules.html#xor-strings) like this:
+```
+rule One_Byte_XOR_Hex_Strings {
+    meta:
+        description = "Detects all one-byte XOR values of {AB CD EF 00}"
+    
+    strings:
+        $ = "\xAB\xCD\xEF\x00" xor(0x01-0xff)
+        
+    condition:
+        any of them
+}
+```
+
+Both of these rules are equivalent in what they achieve/the efficiency in which they achieve it (the `xor` modifier will still have to generate and check for each variation as specified), but the second one is much more succinct and requires a lot less effort on your part.
