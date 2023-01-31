@@ -1,0 +1,35 @@
+---
+layout: post
+title: "100 Days of YARA - Day 31"
+date: 2023-01-31 00:00:00 -0000
+categories: yara
+---
+
+# YARA Tip - Hex values in text strings - Part 1
+Did you know that you can put specific hex values in YARA text strings?
+
+You can write YARA rules specifically for [hexadecimal strings](https://yara.readthedocs.io/en/stable/writingrules.html#hexadecimal-strings), as follows:
+```
+rule Hex_String_Test {
+    strings:
+        $ = {AB CD EF 00}
+        
+    condition:
+        any of them
+}
+```
+
+You can write an equivalent for this rule using text strings by prepending each byte with `\x`, as follows:
+```
+rule Hex_Chars_in_Text_String_Test {
+    strings:
+        $ = "\xAB\xCD\xEF\x00"
+        
+    condition:
+        any of them
+}
+```
+
+This rule is equivalent to the one above! It can be useful if you want to have a mixture of ASCII/non-ASCII characters in a text string (and some other benefits that I'll go into tomorrow).
+
+Thank you to David Cannings ([@edeca](https://twitter.com/edeca)) for teaching me this (among many other YARA tips/tricks over the years!).
