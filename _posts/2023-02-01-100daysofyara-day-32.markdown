@@ -6,7 +6,7 @@ categories: yara
 ---
 
 # YARA Tip - Hex values in text strings - Part 2
-A benefit of writing hex values in text strings is that it allows you to apply modifiers to these strings. For example, if you wanted to look for all one-byte XOR values of `{AB CD EF 00}`, you would have to compute those values yourself, and write a rule with all 255 versions of them:
+A benefit of writing hex values in text strings is that it allows you to apply modifiers to these strings. For example, if you wanted to look for all one-byte XOR values of `{AB CD EF 00}`, you would have to compute those values yourself and write a rule with all 255 versions of them:
 ```
 rule One_Byte_XOR_Hex_Strings {
     meta:
