@@ -1,0 +1,16 @@
+---
+layout: post
+title: "100 Days of YARA - Day 34"
+date: 2023-02-03 00:00:00 -0000
+categories: yara
+---
+
+# Text strings vs. Hexadecimal strings
+I've just spent the last few posts suggesting how effective it can be converting hexadecimal strings into text strings. However, as is usually the case, there are tradeoffs to using this approach.
+
+You may have noticed already that the strings I used in the previous rules are "fixed"; there are no wildcards or variable chunks. Yet, these are the most useful features of using hexadecimal strings, as it allows you to write rules for code where you apply wildcards to mask off specific bytes to write more generic rules!
+
+Wildcards and variable chunks are not possible in YARA text strings; instead you would need to start using [regular expressions](https://yara.readthedocs.io/en/stable/writingrules.html#regular-expressions), but this also then [loses the ability to apply certain modifiers](https://yara.readthedocs.io/en/stable/writingrules.html#string-modifier-summary):
+![](/assets/2023-02-03_string_modifier_summary.png)
+
+In summary, there's usually going to be some tradeoff for the type of string you pick (text, hex, or regex) in YARA, but the more familiar you are with these tradeoffs, the better decisions you can make on which one to use!
