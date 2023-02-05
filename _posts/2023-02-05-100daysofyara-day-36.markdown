@@ -1,0 +1,25 @@
+---
+layout: post
+title: "100 Days of YARA - Day 36"
+date: 2023-02-05 00:00:00 -0000
+categories: yara
+---
+
+# YARA Atoms - Scoring atoms
+The YARA code helpfully describes the heuristics used to score atoms, and provides some examples: [https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c#L117](https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c#L117)
+
+It is worth noting before discussing this that by default the maximum atom length (set in the variable `YR_MAX_ATOM_LENGTH`) [is set to 4](https://github.com/VirusTotal/yara/blob/384265e85ec1c5e01355dca8b4089aab56be240d/libyara/include/yara/limits.h#L68), and as such the code discusses examples which are 4 bytes in length.
+
+In ascending order, the scores given to each byte in an atom are as follows:
+- Any fully masked byte (i.e. `0x??`): -10 points
+- Any partially masked byte (e.g. `0x0?`, `0x?F`): 4 points
+- Common bytes (i.e. `0x00`, `0x20`, `0xFF`): 12 points
+- Letters (i.e. `[A-Za-z]`): 18 points
+- All other bytes: 20 points
+
+An extra score is added at the end which consists of twice the number of unique bytes in the atom. There is also a hidden check which [heavily penalises atoms if all the bytes are equal and common](https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c#L179) (e.g. `{00 00 00 00}` is worth `12 + 12 + 12 + 12 + 2 = 50`, but then has `10 * atom->length = 40` subtracted, meaning it's only worth 10 points overal). 
+
+Example scores can be seen in the docs:
+![](/assets/2023-02-05_atom_scores.png)
+
+A warning threshold is set to 38 points (a set value found [here](https://github.com/VirusTotal/yara/blob/384265e85ec1c5e01355dca8b4089aab56be240d/libyara/include/yara/limits.h#L85), which is used to compare against atom qualities [here](https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c#L201)). Any strings with the "best" atom falling below this threshold will yield a warning from YARA, which will look like: `string "$" may slow down scanning`
