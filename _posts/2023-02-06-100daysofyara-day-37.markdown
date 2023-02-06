@@ -1,0 +1,20 @@
+---
+layout: post
+title: "100 Days of YARA - Day 37"
+date: 2023-02-06 00:00:00 -0000
+categories: yara
+---
+
+# YARA Atoms - Writing rules using strings with good atoms
+So what's the takeaway from this discussion of atoms? You want good atoms in all your strings, and this will be focused around substrings that are of maximum length 4 and scored according to the rules specified in the previous post. 
+
+So to ensure you're writing efficient rules, make sure to:
+- Avoid strings with very short substrings (e.g. `{AB ?? ?? ?? CD}` will only be able to use `AB ?? ?? ??` or `?? ?? ?? CD` as an atom, which are below the threshold)
+- Avoid relying on short substrings of only common bytes (e.g. `{00 20}` is below threshold)
+- Avoid too many partial masked bytes (e.g. `{A? ?B C? ?D}` is below threshold)
+
+Instead, try to use strings that you know have good length atoms, and that have unique bytes.
+
+It's okay in some instances to have strings with bad atoms in them, provided that you have good atoms to make up for it. E.g. `{00 20}` is a bad string on its own, but `{AB CD EF 00 20}` is a good string, as YARA can use the atom `AB CD EF 00`.
+
+YARA will still work even if you have bad atom strings, but don't ignore those `string "$" may slow down scanning` warnings! Hunt down the rules which are causing issues, and see if you can fix those strings - it'll help you out in the long run.
