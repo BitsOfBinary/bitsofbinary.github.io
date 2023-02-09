@@ -1,0 +1,32 @@
+---
+layout: post
+title: "100 Days of YARA - Day 40"
+date: 2023-02-09 00:00:00 -0000
+categories: yara
+---
+
+# Math Module - Entropy of PE sections
+Some success of using the entropy function can be found in targeting specific sections of PE files. For example, as Tony Lambert points out in a blog, he uses a rule looking for encrypted resources in PE files: [https://forensicitguy.github.io/adventures-in-yara-hashing-entropy/#matching-on-resource-entropy](https://forensicitguy.github.io/adventures-in-yara-hashing-entropy/#matching-on-resource-entropy)
+
+Something that may help us to use the entropy function successfully is understanding the expected entropy of PE sections, to give us a rough idea of what is "normal".
+
+So, for example, using YARA itself I could run the following rule to print the entropy value of the `.text` section (i.e. the code section) of a PE file:
+```
+import "math"
+import "console"
+import "pe"
+
+rule PE_Entropy_dottext_Section {
+    condition:
+        for any section in pe.sections : (
+            section.name == ".text" and
+            console.log(math.entropy(section.raw_data_offset, section.raw_data_size))
+        )
+}
+```
+
+On windows, if I run this rule across `C:\Windows\system32`, I can print out each `.text` entropy and save off the values. I can copy and paste the results from this straight into CyberChef, and [using these formulas](https://gchq.github.io/CyberChef/#recipe=Regular_expression('User%20defined','%5B0-9%5D%5C%5C.%5B0-9%5D%7B6%7D',true,true,false,false,false,false,'List%20matches')Mean('Line%20feed')) get the average entropy of a PE in this folder.
+
+For my Windows installation, this mean value comes to `5.80` (with standard deviation `1.27`). This makes sense, as code itself can appear "quite" random, but will have some structure to it based on consistent use of specific assembly instructions.
+
+If I do the same for the `.rdata` section (i.e. the read-only data section which usually stores things like strings), the average is `3.54` (with standard deviation `1.46`). This value is a lot lower than the `.text` section, which is to be expected as strings are generally "less random" than code.
