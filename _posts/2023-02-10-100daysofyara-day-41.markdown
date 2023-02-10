@@ -1,0 +1,28 @@
+---
+layout: post
+title: "100 Days of YARA - Day 41"
+date: 2023-02-10 00:00:00 -0000
+categories: yara
+---
+
+# Math Module - Entropy Performance
+If you use the entropy function in your YARA rules, you may notice that the performance of these rules are slower in general compared to string only rules. This gets worse the bigger the data is that you are computing the entropy for. As such, it is undesirable to perform blind entropy checks against arbitrary files.
+
+Instead, it is better to be smarter with your entropy checks. Florian Roth recommends using the fact that functions like `math.entropy` will [only be evaluated in the condition if/when they need to](https://github.com/Neo23x0/YARA-Performance-Guidelines#conditions-and-short-circuit-evaluation) reorder your conditions to not run them in every instance.
+
+Another suggestion I remember seeing was that if you needed to compute entropy of a large amount of data, consider only checking the entropy of small chunks of the data instead. This may not give as accurate results, may give a performance boost! If you need more accurate results, you could first compute the entropy of a smaller chunk, and only then compute the entropy of the rest of the file.
+
+For example, here is the same rule from the previous post, but only computing entropy of the first 2048 bytes of the `.text` section (if the section is smaller than this it will just compute the whole thing):
+```
+import "math"
+import "console"
+import "pe"
+
+rule PE_Entropy_dottext_Section {
+    condition:
+        for any section in pe.sections : (
+            section.name == ".text" and
+            console.log(math.entropy(section.raw_data_offset, math.min(2048, section.raw_data_size)))
+        )
+}
+```
