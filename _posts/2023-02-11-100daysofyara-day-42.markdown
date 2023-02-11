@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "100 Days of YARA - Day 42"
-date: 2023-02-12 00:00:00 -0000
+date: 2023-02-11 00:00:00 -0000
 categories: yara
 ---
 
