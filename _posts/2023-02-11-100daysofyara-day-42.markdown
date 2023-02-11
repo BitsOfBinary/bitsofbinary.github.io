@@ -10,7 +10,7 @@ The entropy function is the only measure of "randomness" in the math module (as 
 
 This function will use a Monte Carlo method of [estimating the value of pi](https://academo.org/demos/estimating-pi-monte-carlo/) (`3.14159265359...`). This is done by taking the values which are input into the function, scaling them and placing them on a graph of a circle. By comparing the number of points that are inside vs. outside the circle, the value of pi can be estimated. The idea is that the more random points there are plotted in/out of the circle, the more accurate the estimation of pi will be. If the data isn't very "random" though, the estimation won't be as good.
 
-![Estimation of pi using Monte Carlo method](/assets/2023-02-11_monte_carlo_pi_estimate.png)
+![Estimation of pi using Monte Carlo method](/assets/2023-02-11_monte_carlo_pi_estimate.png "Reference: https://academo.org/demos/estimating-pi-monte-carlo/")
 
 The output of `math.monte_carlo_pi` is not the estimated value of pi, but rather the percentage difference between the true value of pi compared to the estimated one. As such, the lower the output of the function, the closer the estimation to pi was, and the more "random" the data was. The higher the number, the further away from pi the estimation, so the less random it was.
 
