@@ -1,0 +1,48 @@
+---
+layout: post
+title: "100 Days of YARA - Day 45"
+date: 2023-02-14 00:00:00 -0000
+categories: yara
+---
+
+# Math Module - Using min to bound loops
+The math module comes with several convenient functions, including `math.max()` and `math.min()`. While you could certainly use these for maths related operations, they can have some other uses within your conditions.
+
+In particular, if you're using loops in YARA, you may find your self in positions where performance may become an issue; especially if you have nested loops (**note:** in general, try to avoid nested loops). Take the following hypothetical, convoluted rule for instance:
+```
+rule Loop_Test {
+    strings:
+        $foo = "foo"
+        $bar = "bar"
+    
+    condition:
+        for any i in (1 .. #foo) : (
+            for any j in (1 .. #bar) : (
+                @foo[i] ^ @bar[j] == 0xdeadbeef
+            )
+        )
+}
+```
+
+This rule has a double for loop, looking for any instance where the addresses of two strings XOR to a specific value. The problem with this rule is that depending on how common the strings are, it may be searching for a long time! If you had say 500 occurances of `$foo` and 200 occurances of `$bar`, that's up to 100,000 iterations in total to evaluate.
+
+Instead, to ensure that the performance isn't terrible for a loop like this, consider using `math.min()` to limit the number of iterations:
+```
+import "math"
+
+rule Loop_Test {
+    strings:
+        $foo = "foo"
+        $bar = "bar"
+    
+    condition:
+        for any i in (1 .. math.min(#foo, 10)) : (
+            for any j in (1 .. math.min(#bar, 10)) : (
+                @foo[i] ^ @bar[j] == 0xdeadbeef
+            )
+        )
+}
+```
+This will ensure that only the first 10 instances of each string are compared, which is a max 100 iterations in comparison.
+
+Note that using this approach has the chance of missing many checks, so bear that in mind. In practice, your circumstances will change a lot between rules, but considering that you should bound these loops should be a priority for the sake of performance!
