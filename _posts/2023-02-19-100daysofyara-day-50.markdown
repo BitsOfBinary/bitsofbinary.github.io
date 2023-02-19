@@ -15,7 +15,8 @@ For strings that are common and appear multiple times in files, this flag will s
 
 As such, any rules that rely on the count of a string (i.e. the count of string `$test` can be obtained via `#test`), or iterating over offsets to string (i.e. the 5th occurance of `$test` would be `@test[5]` - yes, [they are indexed from 1](https://yara.readthedocs.io/en/stable/writingrules.html#string-offsets-or-virtual-addresses)) will not properly evaluate.
 
-CORRECTION: Wesley Shields pointed out a threat to me that explains some of the nuance of fast mode better: [https://twitter.com/wxs/status/1627278414926184450](https://twitter.com/wxs/status/1627278414926184450)
+## Edit
+**CORRECTION**: Wesley Shields pointed out a threat to me that explains some of the nuance of fast mode better: [https://twitter.com/wxs/status/1627278414926184450](https://twitter.com/wxs/status/1627278414926184450)
 
 In short, fast mode will still mean rules evaluate correctly no matter what condition you use; it's more about the fact that YARA won't need to store references to every string depending on the condition, which can save some processing at the expense of not displaying those strings to the user.
 
