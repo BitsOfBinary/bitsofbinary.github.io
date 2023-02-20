@@ -1,0 +1,16 @@
+---
+layout: post
+title: "100 Days of YARA - Day 51"
+date: 2023-02-20 00:00:00 -0000
+categories: yara
+---
+
+# YARA Command line: Performance - Skip larger
+If you're running YARA rules over a large file system, a challenge you may run into is that you may scan very large files. While this may be what you want, depending on your rules this could also lead to a lot of processing being necessary.
+
+Since YARA v4.2.0, there is a `--skip-larger` (or `-z`) flag, which can be used to ignore files past a specified size when running in recursive mode (i.e. with the `-r` flag). If you use this flag, for every file larger than the specified size you will get an error message sent to `stderr` with the following format:
+```
+skipping FILENAME (SIZE_OF_FILE bytes) because it's larger than SPECIFIED_SKIP_SIZE bytes.
+```
+
+Consider using this to save some processing time, accepting the fact that you might miss some files in the process!
