@@ -1,0 +1,11 @@
+---
+layout: post
+title: "100 Days of YARA - Day 52"
+date: 2023-02-21 00:00:00 -0000
+categories: yara
+---
+
+# YARA Command line: Performance - Multi-threading
+When scanning directories (or scanning a list of files), YARA can run in a multi-threading mode. You can use the `--threads` (or `-p`) to specify the maximum number of threads you want to use.
+
+The maximum number of threads is set in the variable `YR_MAX_THREADS`, which is set to `32` by default. In reading the code, it appears that YARA will [set the default threads count to be that of the maximum](https://github.com/VirusTotal/yara/blob/68d9b6559af7cb22df3abdfb4531c932836fb5b5/cli/yara.c#L166), so this flag is more so used for if you want to set a lower amount of threads to run (which may be advisable if you're running on a live system that you don't want to slow down too much, for example).
