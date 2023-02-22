@@ -1,0 +1,16 @@
+---
+layout: post
+title: "100 Days of YARA - Day 53"
+date: 2023-02-22 00:00:00 -0000
+categories: yara
+---
+
+# YARA Command line: Performance - Memory scanning
+Did you know that YARA scan be used to scan the memory of a system? You don't need to necessarily aquire a copy of the memory to run rules over it; rather you can specify the process ID (PID) as specified in the usage:
+```
+Usage: yara [OPTION]... [NAMESPACE:]RULES_FILE... FILE | DIR | PID
+```
+
+You can limit the size of the largest memory chunk with the `--max-process-memory-chunk=NUMBER` flag (which by default is 1GB).
+
+In practice I don't find myself using YARA to scan memory that often, but it's a nice option to have, especially if you want to test things like in-memory config extraction!
