@@ -1,0 +1,11 @@
+---
+layout: post
+title: "100 Days of YARA - Day 54"
+date: 2022-02-23 00:00:00 -0000
+categories: yara
+---
+
+# YARA Command line: Utility - Count flag
+A flag I forget about a lot is the `-c` flag (note that it's lowercase this time). Rather than displaying the rulename + filepath of each rule hit, it will instead display each file that has been scanned, and return the number of rules that have hit against it.
+
+While you lose the context of which rules have evaluated to true against which files, it can be a useful way of getting an idea of if you're missing any samples with the rules you've written. E.g. if you've collected your samples of interest in a specific directory, and all your rules in one file, you can quickly an easily see what samples you're missing rules for/still need to signature.
