@@ -1,0 +1,13 @@
+---
+layout: post
+title: "100 Days of YARA - Day 56"
+date: 2022-02-25 00:00:00 -0000
+categories: yara
+---
+
+# YARA Command line: Utility - String lengths
+So you probably know you can displayed matched strings with the `-s` flag. But did you know, that you can display the matched string lengths with with `--print-string-length` (or `-L`) flag?
+
+This is a pretty cool flag, that may not have immediately understandable benefits. You might be thinking "don't I already know the length of my strings?". And the answer is yes, but not in all cases. In fact, if you've used wildcards/ranges in hex/regex strings, the length of your string may be variable!
+
+You can retrieve the [length of a matched string](https://yara.readthedocs.io/en/stable/writingrules.html#match-length) by using the `!` operator (i.e. the first occurance string of `$s` will have length `!s[1]`).
