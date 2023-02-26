@@ -1,0 +1,13 @@
+---
+layout: post
+title: "100 Days of YARA - Day 57"
+date: 2023-02-26 00:00:00 -0000
+categories: yara
+---
+
+# YARA Command line: Utility - Scan list
+If you want to use YARA to scan only a specific set of files, rather than every file/subdirectory of directory, you can use the `--scan-list` flag. Here you can pass individual files, or directories themselves, as a newline separated list, which YARA will then run through.
+
+This could be really useful if you want to do a targeted scan of an endpoint. Be pre-determining the directories you want to scan (or not scan), this could make your life a lot easier!
+
+At the time of writing, I'm having some issues getting this to work as expected on Windows, but it works fine on Linux. Might be on that needs a pull request to fix for Windows!
