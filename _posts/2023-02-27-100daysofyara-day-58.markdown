@@ -12,9 +12,9 @@ As highlighted in the docs, there are several types of functions you can use to 
 ![](/assets/2023-02-27_int_func_summaries.png)
 
 In short, you can either access signed or unsigned integer values, which are either of size:
-- 8 bits
-- 16 bits
-- 32 bits
+- 8-bits (i.e. 1 byte)
+- 16-bits (i.e. 2 bytes)
+- 32-bits (i.e. 4 bytes)
 
 For each variation of these, you can also choose the endianess (that is, the order of the bytes). By default, little endian is used (i.e. the least signficant byte is evaluated first), but you can add `be` into the function to change it to big endian. Personally, I prefer using big endian where possible, as that is as if bytes are in the order that they appear in the file.
 
