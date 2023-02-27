@@ -1,0 +1,22 @@
+---
+layout: post
+title: "100 Days of YARA - Day 58"
+date: 2023-02-27 00:00:00 -0000
+categories: yara
+---
+
+# Accessing data at specified offsets
+A feature of YARA I've used a few times so far in these posts are the operations to do comparisons of (unsigned) integer values at specific offsets in files. You can see the documentation for this feature here: [https://yara.readthedocs.io/en/stable/writingrules.html#accessing-data-at-a-given-position](https://yara.readthedocs.io/en/stable/writingrules.html#accessing-data-at-a-given-position)
+
+As highlighted in the docs, there are several types of functions you can use to access data at certain offsets:
+![](/assets/2023-02-27_int_func_summaries.png)
+
+In short, you can either access signed or unsigned integer values, which are either of size:
+- 8 bits
+- 16 bits
+- 32 bits
+
+For each variation of these, you can also choose the endianess (that is, the order of the bytes). By default, little endian is used (i.e. the least signficant byte is evaluated first), but you can add `be` into the function to change it to big endian. Personally, I prefer using big endian where possible, as that is as if bytes are in the order that they appear in the file.
+
+## Why is this useful?
+Whereas YARA is primarily designed for string matching, the fact you can access data at certain offsets means you can be very specific in how you write your rules. In particular, it makes it possible to be specific in the types of files you want to run your rules over, based on checking file headers. We'll spend a few posts discussing this.
