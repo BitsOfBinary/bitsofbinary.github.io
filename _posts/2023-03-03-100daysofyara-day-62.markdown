@@ -1,0 +1,22 @@
+---
+layout: post
+title: "100 Days of YARA - Day 62"
+date: 2023-03-03 00:00:00 -0000
+categories: yara
+---
+
+# File classification: ELF files
+What other file types can we write conditions for? Let's consider some other executable file formats, starting with Executable and Linkable Format (ELF).
+
+This file format is used in Linux, and like PE files it has some "magic bytes" [at the start of the binary](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) (as seen in this example from Wikipedia):
+![](/assets/2023-03-03_elf_header_example.png)
+
+As the specification lays out, ELF files will start with the byte `0x7f` followed by the characters `ELF`. We can write a YARA rule for this as follows:
+```
+rule IsELF {
+    condition:
+        uint32be(0) == 0x7f454c46
+}
+```
+
+Note that I'm using the big endian version here, as it means I can copy the bytes straight into the rule in order. You can do a little endian equivalent using `uint32(0) == 0x464c457f`. Again, up to you what you prefer.
