@@ -1,0 +1,25 @@
+---
+layout: post
+title: "100 Days of YARA - Day 63"
+date: 2023-03-04 00:00:00 -0000
+categories: yara
+---
+
+# File classification: ELF files - 32 bit or 64 bit?
+Let's say we wanted to write a YARA condition to find 64-bit ELF binaries (without using the ELF module). Let's look at the specification again: [https://en.wikipedia.org/wiki/Executable_and_Linkable_Format](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
+
+The byte at offset `0x4` is either set to `1` for 32-bit binaries, and `2` for 64-bit binaries. Now we can't write this rule with just one check; there is no `uint40` operator unfortunately. However, we can combine multiple checks together to make this work:
+```
+rule IsELF_64bit {
+    condition:
+        // Check for ELF header
+        uint32be(0) == 0x7f454c46 and
+        // Byte at offset 0x4 is 1 for 32-bit, 2 for 64-bit
+        uint8(4) == 2
+}
+```
+
+Couple of notes for this rule:
+- It doesn't really matter if I use `uint8` or `uint8be` for the 32-bit/64-bit check, as the endianess doesn't matter when we're dealing with one byte;
+- You can either use decimal or hexadecimal representations of numbers in YARA; here I'm using the fact that `0x4` is equivalent to decimal `4` in the rule (equally I could use that `0x7f454c46` is equivalent to `2135247942`, but that makes the rule a lot less clear about what it is checking); and,
+- You can use `int` or `uint` as long as you're careful. Here, if I make both checks `int`, it will still work. But you'll need to be careful if you're doing checks against large values (especially if you don't know what they are ahead of time), as you might have to factor in that the `int` versions can also be negative numbers. I tend to use `uint` for ease of knowing the number will always be positive.
