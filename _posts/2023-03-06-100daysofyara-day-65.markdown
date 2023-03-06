@@ -1,0 +1,29 @@
+---
+layout: post
+title: "100 Days of YARA - Day 65"
+date: 2023-03-06 00:00:00 -0000
+categories: yara
+---
+
+# File classification: ELF files - Number of sections case study - Part 2
+If you trust the ELF file format enough, we could convert the if/elseif equivalent statements from the rule in the previous post to an if/else equivalent statement, relying on the fact that if it isn't 32-bit, it must be 64-bit:
+```
+rule Heuristic_ELF_with_One_Section {
+    condition:
+        uint32be(0) == 0x7f454c46 and
+        (
+            // 32-bit check
+            (
+                uint8(4) == 1 and
+                uint16(0x30) == 1
+            )
+            or
+            // Assume 64-bit if 32-bit check fails
+            uint16(0x3c) == 1
+        )
+}
+```
+
+This is a condition with less checks involved, but is maybe a little less clear than the previous rule! Adding some comments can clear things up a bit, and I think in general we should strive to make our rules as clear as possible (so maybe in your use case, the rule in the previous post is better as it is more clear on how it works). 
+
+That said, I'll show in the next post how to reduce this condition even further...
