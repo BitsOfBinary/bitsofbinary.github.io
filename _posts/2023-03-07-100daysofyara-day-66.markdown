@@ -1,0 +1,30 @@
+---
+layout: post
+title: "100 Days of YARA - Day 66"
+date: 2023-03-07 00:00:00 -0000
+categories: yara
+---
+
+# File classification: ELF files - Number of sections case study - Part 3
+If you want to get more creative, and decide you want the number of sections computation done in one line, you could do the following:
+```
+rule Heuristic_ELF_with_One_Section {
+    condition:
+        uint32be(0) == 0x7f454c46 and
+        uint16(0x30 + ((uint8(4) - 1) * 0xc)) == 1
+}
+```
+I.e., if the binary is 32-bit, the expression `(uint8(4) - 1) * 0xc` will collapse to zero, meaning the `uint16` check will point at the `0x30` offset. If it is 64-bit, it will become `0xc`, which will then be added to the `0x30` offset (i.e. `0x3c`). To be honest I think this is unnecessary, and maybe even less efficient (i.e. the previous post's rule will do up to three equals comparisons for the sections check, and while this rule only does one equals comparison it adds three mathematical operations), but I wanted to show this is possible! There's probably an even more efficient way of doing it using logical `&` operations; let me know if you have a better approach!
+
+I hope that by highlighting that despite YARA not having the traditional conditional statements that are expected of programming languages, you can still use the conditions available to create the logical statements you're after.
+
+## Or just use a module...
+Overall, these conditions can start to get quite complicated, so if you've got a module available to help, it might just be easier to use that. Here's the same rule but in its module form:
+```
+import "elf"
+
+rule Heuristic_ELF_with_One_Section {
+    condition:
+        elf.number_of_sections == 1
+}
+```
