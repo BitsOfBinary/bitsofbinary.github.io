@@ -1,0 +1,30 @@
+---
+layout: post
+title: "100 Days of YARA - Day 67"
+date: 2023-03-08 00:00:00 -0000
+categories: yara
+---
+
+# File classification: Mach-O files
+Another executable file format is [Mach-O](https://en.wikipedia.org/wiki/Mach-O), which is used in macOS. The magic bytes at the start of a Mach-O binary can vary, as highlighted in this blog: [https://redmaple.tech/blogs/macho-files/](https://redmaple.tech/blogs/macho-files/)
+
+In particular, something I saw when looking up these values is that `0xCAFEBABE` (used for Mach-O FAT binaries) is [also used](https://stackoverflow.com/questions/73546728/magic-value-collision-between-macho-fat-binaries-and-java-class-files) for Java `.class` files, meaning we might misclassify some files if just relying on this value! However, Apple has a hacky approach of getting around this based on Java versions: [https://opensource.apple.com/source/file/file-80.40.2/file/magic/Magdir/cafebabe.auto.html](https://opensource.apple.com/source/file/file-80.40.2/file/magic/Magdir/cafebabe.auto.html)
+
+In short, the the 16-bit value at offset `0x4` would tell us the Java version, the lowest value of which is apparently `0x30`. For Mach-0, the 32-bit value at offset `0x4` identifies the architecture, which according to the linked docs (which were written in 2018 so there may be later versions) only goes up to version 18. So, we could rely on the following to avoid trying to get false positives:
+```
+rule IsMacho {
+    condition:
+        uint32(0) == 0xfeedface or    // the mach magic number
+        uint32(0) == 0xcefaedfe or    // NXSwapInt(MH_MAGIC)
+        uint32(0) == 0xfeedfacf or    // the 64-bit mach magic number
+        uint32(0) == 0xcffaedfe or    // NXSwapInt(MH_MAGIC_64)
+        (
+            uint32(0) == 0xcafebabe and    // Mach-O FAT binaries
+            uint16(4) < 0x30               // Avoid Java classes
+        )
+}
+```
+
+I definitely want to learn more about macOS; I can highly recommend checking about Daniel Stinson's ([@shellcromancer](https://twitter.com/shellcromancer)) posts for #100DaysofYARA, as he has covered so far several different macOS malware families/heuristic rules: [https://github.com/shellcromancer/DaysOfYARA-2023/tree/main/shellcromancer](https://github.com/shellcromancer/DaysOfYARA-2023/tree/main/shellcromancer)
+
+
