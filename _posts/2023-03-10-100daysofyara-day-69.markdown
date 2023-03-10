@@ -1,0 +1,41 @@
+---
+layout: post
+title: "100 Days of YARA - Day 69"
+date: 2023-03-10 00:00:00 -0000
+categories: yara
+---
+
+# File classification: Strings vs. offsets - Part 1
+In the previous psot, I showed two different ways to classify ISO files; one using `uint` checks, and another using strings. Why would you pick one over the other?
+
+One way I see people write rules to check if a file is a PE is as follows:
+```
+rule IsPE {
+    strings:
+        $mz = "MZ"
+        // equally you could use $mz = {4d 5a}
+        
+    condition:
+        $mz at 0
+}
+```
+
+As a rule, this is fine. The atom `{4d 5a}` is not going to be flagged by YARA as "slowing down your scanning". And it follows the same logic that the `uint16(0) == 0x5A4D` check. In fact, when testing this in the current version of YARA, the `$mz at 0` condition means that YARA will stop trying to find other instances of `MZ` once it has found the first one!
+
+A potential issue rises when you start to introduce other strings. For instance, the following rule:
+```
+rule IsPE {
+    strings:
+        $mz = {4d 5a}
+        // equally you could use $mz = {4d 5a}
+        
+        $foobar = "foobar"
+        
+    condition:
+        $mz and 0 and any of them
+}
+```
+
+If you run this rule, and print out the matched strings, you will see that it will try to search for every instance of `MZ` (unless we specify YARA to run in fast mode that is) unlike the other rule. This is not as good performance-wise; if you're scanning compressed/encrypted data, the chances of the bytes `{4d 5a}` appearing in many places increases!
+
+Alternatively, the check `uint16(0) == 0x5A4D` doesn't rely on strings, meaning we don't have to search for `MZ` everywhere to evaluate the condition. These bytes will either be at the start of the file where we have specified, or they won't, meaning the check is usually quicker.
