@@ -1,0 +1,122 @@
+---
+layout: post
+title: "100 Days of YARA - Day 70"
+date: 2023-03-11 00:00:00 -0000
+categories: yara
+---
+
+# File classification: Strings vs. offsets - Part 2
+In the previous post I attempted to discuss some of the potential tradeoffs of using strings vs. offsets. However, there were some inaccuracies in my approach (thank you to Wesley Shields for [pointing this out](https://twitter.com/wxs/status/1634156482043301890)). I still need to look at the source code of YARA more in detail to see how the YARA searching algorithm changes depending on how large the file, but for now let's do some further tests to see what potential differences there could be between strings and offsets.
+
+Let's consider the worst case scenario - large files of random data where the bytes `{4d 5a}` may occur often. To simulate this, I generated some random files of varying size:
+```
+import os
+
+with open("1kb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024))
+
+with open("200kb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 200))
+    
+with open("500kb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 500))
+    
+with open("1mb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024))
+    
+with open("200mb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024 * 200))
+    
+with open("500mb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024 * 500))
+    
+with open("1gb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024 * 1024))
+    
+with open("10gb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024 * 1024 * 10))
+```
+
+And ran the following rules through [Panopticon](https://github.com/Neo23x0/panopticon):
+```
+rule Just_Str_MZ_At_0 {
+    strings:
+        $mz = "MZ"
+        
+    condition:
+        $mz at 0
+}
+
+rule Str_MZ_At_0_And_Extra_String {
+    strings:
+        $mz = "MZ"
+        
+        $foobar = "foobar"
+        
+    condition:
+        $mz at 0 and $foobar
+}
+
+rule Str_MZ_Anywhere {
+    strings:
+        $mz = "MZ"
+        
+    condition:
+        any of them
+}
+
+rule Just_Offset_MZ_At_0 {        
+    condition:
+        uint16(0) == 0x5A4D
+}
+
+rule Offset_MZ_At_0_And_Extra_String {  
+    strings:
+        $foobar = "foobar"
+      
+    condition:
+        uint16(0) == 0x5A4D and $foobar
+}
+```
+
+In general, I wanted to test different cases of checking if a file is a PE based on offset checks vs. strings. Unfortunately, I seem to be getting inconsistent results in terms of the performance. These are the results I got on my system when running them against the random files:
+```
+[INFO   ] Rule "Just_Str_MZ_At_0" is fast enough, not measuring any further due to fast mode, diff 7.2349 % below
+alerting level: 18.9697 %
+[INFO   ] Rule "Str_MZ_At_0_And_Extra_String" is fast enough, not measuring any further due to fast mode, diff -17.0396
+% below alerting level: 18.9697 %
+[INFO   ] Rule "Str_MZ_Anywhere" is fast enough, not measuring any further due to fast mode, diff -16.6793 % below
+alerting level: 18.9697 %
+[INFO   ] Rule "Just_Offset_MZ_At_0" is fast enough, not measuring any further due to fast mode, diff -48.4826 % below
+alerting level: 18.9697 %
+[INFO   ] Rule "Offset_MZ_At_0_And_Extra_String" is fast enough, not measuring any further due to fast mode, diff
+-50.0343 % below alerting level: 18.9697 %
+```
+
+And these are results from a second run of the same rules (in which I changed the order of the rules a bit):
+```
+[INFO   ] Rule "Just_Offset_MZ_At_0" is fast enough, not measuring any further due to fast mode, diff -51.9545 % below
+alerting level: 3.0000 %
+[INFO   ] Rule "Offset_MZ_At_0_And_Extra_String" is fast enough, not measuring any further due to fast mode, diff
+-50.7250 % below alerting level: 3.0000 %
+[INFO   ] Rule "Just_Str_MZ_At_0" is fast enough, not measuring any further due to fast mode, diff -25.8056 % below
+alerting level: 3.0000 %
+[INFO   ] Rule "Str_MZ_At_0_And_Extra_String" is fast enough, not measuring any further due to fast mode, diff -48.6145
+% below alerting level: 3.0000 %
+[INFO   ] Rule "Str_MZ_Anywhere" is fast enough, not measuring any further due to fast mode, diff -49.0124 % below
+alerting level: 3.0000 %
+```
+
+What can be seen in both sets of results is that all of the rules I've run here are fast, but that that the offset check rules are consistently fast, while the string checks are inconsistent (sometimes just as fast as the offset rules, sometimes not).
+
+While I would like to do more testing, I'm not sure that this is necessarily the right approach at this stage!
+
+Some caveats: bear in mind that:
+- These rules are being run against large random files, which is going to be the worst case scenario
+- Are doing very basic checks, whereas as other rules will have more strings/checks alongside them
+- When run on their own vs. a larger set of rules the performance will likely change
+
+## In conclusion
+I have a bias against `$mz at 0` rules, due to my belief that they did not perform as well. While there may be some edge cases where there are differences in performance, it does not appear that this is the case in general!
+
+In short, there's unlikely to be a practical difference in whether you use strings or offsets to check for specific conditions. It is your preference for how you want to write these rules.
