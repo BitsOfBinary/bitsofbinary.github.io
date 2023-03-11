@@ -42,4 +42,4 @@ rule IsPE {
 
 ~~If you run this rule, and print out the matched strings, you will see that it will try to search for every instance of `MZ` unlike the other rule, even though we only care about whether it appears at offset `0`. This is not as good performance-wise; if you're scanning compressed/encrypted data, the chances of the bytes `{4d 5a}` appearing in many places increases! This means YARA will have to scan for the atom `{4d 5a}` everywhere, and record each location of its appearence (unless we specify YARA to run in fast mode with the `-f` flag that is).~~
 
-Alternatively, the check `uint16(0) == 0x5A4D` doesn't rely on strings, meaning we don't have to search for `MZ` everywhere to evaluate the condition. These bytes will either be at the start of the file where we have specified, or they won't, meaning the check is usually quicker.
+~~Alternatively, the check `uint16(0) == 0x5A4D` doesn't rely on strings, meaning we don't have to search for `MZ` everywhere to evaluate the condition. These bytes will either be at the start of the file where we have specified, or they won't, meaning the check is usually quicker.~~
