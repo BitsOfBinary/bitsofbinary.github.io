@@ -1,0 +1,25 @@
+---
+layout: post
+title: "100 Days of YARA - Day 71"
+date: 2023-03-12 00:00:00 -0000
+categories: yara
+---
+
+# File classification: OneNote files
+If you follow the latest threat vectors being used by threat actors in the wild, you may have seen that there has been an increase in OneNote files used in phishing campaigns: [https://www.proofpoint.com/uk/blog/threat-insight/onenote-documents-increasingly-used-to-deliver-malware](https://www.proofpoint.com/uk/blog/threat-insight/onenote-documents-increasingly-used-to-deliver-malware)
+
+With the changes made by Microsoft to [by default disable macros in documents downloaded from the internet](https://learn.microsoft.com/en-us/deployoffice/security/internet-macros-blocked), it can be expected that threat actors will continue to experiment with different file formats! Using OneNote in particular seemed to be quite effective at the start, as not all security tooling was necessarily prepared to handle the file format.
+
+So what can we do with YARA? As with many cases I've highlighted so far, the first thing we want to do is classify files as OneNote files. According to [this document](https://www.garykessler.net/library/file_sigs.html), they have the following signature at the start of a file:
+```
+E4 52 5C 7B 8C D8 A7 4D
+AE B1 53 78 D0 29 96 D3
+```
+
+While we could write a condition for the whole header, it should be sufficient to look at the first 4 bytes:
+```
+rule IsOneNote {
+    condition:
+        uint32be(0) == 0xE4525C7B
+}
+```
