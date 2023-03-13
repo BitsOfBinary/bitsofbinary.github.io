@@ -1,0 +1,31 @@
+---
+layout: post
+title: "100 Days of YARA - Day 72"
+date: 2023-03-13 00:00:00 -0000
+categories: yara
+---
+
+# File classification: OneNote Case Study - Embedded Files - Part 1
+So now that we can classify OneNote files, what kind of heuristics can we perform? Let's use the official file specification as a reference: [https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf](https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf)
+
+The general approach threat actors have been taking so far is to embed files within OneNote documents (such as PowerShell, HTA, PE, etc.), which when double clicked on within the notebook will be executed. If you go to the section `2.1.12 Properties` of the file specification, you will see that many of the structures of OneNote have `PropertyID` values associated with them. In particular, I could see the following:
+```
+EmbeddedFileContainer    0x20001D9B
+```
+
+Even though we don't currently have a YARA module to parse OneNote files, using this information we can write the following heuristic rule:
+```
+rule Heuristic_OneNote_Notebook_with_Embedded_File {
+    meta:
+        description = "Detects OneNote notebooks with an embedded file"
+        reference = "https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf"
+        
+    strings:
+        $embedded_file_container_property_id = {9B 1D 00 20}
+        
+    condition:
+        uint32be(0) == 0xE4525C7B and any of them
+}
+```
+
+While this rule will almost certainly pick up a legitimate OneNote files (embedding files is a feature of OneNote after all that will have some legitimate use), it is a starting point to apply more heuristics to search for suspicious OneNote files.
