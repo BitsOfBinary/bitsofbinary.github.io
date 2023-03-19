@@ -18,8 +18,8 @@ At a first glance, there doesn't appear to much to work with! There are some rep
 However, near the start of the file (more specifically near the beginning of the `.text` section), there are some format strings of interest:
 ```
 %s\%s
-%s\%s{%s}
-s\{%s}
+%s\%s{% raw %}{%s}{% endraw %}
+s\{% raw %}{%s}{% endraw %}
 ```
 
 All of these strings in combination may be good enough for a first rule as follows:
@@ -33,8 +33,8 @@ rule AcidBox_SSP_DLL_Loader_Format_Strings {
         
     strings:
         $ = "%s\\%s"
-        $ = "%s\\%s{%s}"
-        $ = "s\\{%s}"
+        $ = "%s\\%s{% raw %}{%s}{% endraw %}"
+        $ = "s\\{% raw %}{%s}{% endraw %}"
         
     condition:
         all of them
