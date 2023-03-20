@@ -25,3 +25,5 @@ rule AcidBox_SSP_DLL_Loader_Format_String_Chunk {
         any of them
 }
 ```
+
+While this rule is stricter than the previous one, it guarantees to only hit on samples that have these format strings in order like this, making it potentially less FP-prone, at the risk of missing samples that have these format strings more spread out/out of order, etc.
