@@ -1,0 +1,28 @@
+---
+layout: post
+title: "100 Days of YARA - Day 83"
+date: 2023-03-24 00:00:00 -0000
+categories: yara
+---
+
+# AcidBox - SSP DLL PE Meta Features - Part 2
+Many PE files will have a `VERSIONINFO` resource: [https://learn.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource](https://learn.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource)
+
+As described, this resource contains information such as the intended operating system, and original name of the file. This resource is also parsed by the PE module: [https://yara.readthedocs.io/en/stable/modules/pe.html#c.version_info](https://yara.readthedocs.io/en/stable/modules/pe.html#c.version_info)
+
+For the sample of AcidBox we've been looking at, it has an internal name of `windigest.dll`, and a file description of `Windows Digest Access`. Both these values appear to be unique, and can be the basis for a YARA rule:
+```
+import "pe"
+
+rule AcidBox_SSP_DLL_Loader_windigest_Version_Info {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique version information of 'windigest' and a description"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    condition:
+        pe.version_info["InternalName"] == "windigest.dll" or
+        pe.version_info["FileDescription"] == "Windows Digest Access"
+}
+```
