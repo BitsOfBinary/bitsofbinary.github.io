@@ -6,23 +6,35 @@ categories: yara
 ---
 
 # AcidBox - SSP DLL PE Meta Features - Part 3
-While on the topic of version info, the [Palo Alto blog for AcidBox](https://unit42.paloaltonetworks.com/acidbox-rare-malware/) mentions that the following filenames were used:
-- `msv1_0.dll`
-- `pku2u.dll`
-- `wdigest.dll`
+While on the topic of version info, the [Palo Alto blog for AcidBox](https://unit42.paloaltonetworks.com/acidbox-rare-malware/) mentions that the following filenames (which are similar to known Windows binaries) were used:
+- `msv1_1.dll`
+- `pku.dll`
+- `windigest.dll`
 
-We've covered `wdigest.dll` in our previous rule, and `pku2u.dll` seems to be a legitimate DLL. However, we could still make a hunting rule looking for `msv1_0.dll` which appears to be much less common:
+We've covered `windigest.dll` in our previous post, and we can write rules for the two remaining filenames, even if we don't have any samples to work with:
 ```
 import "pe"
 
-rule AcidBox_SSP_DLL_Loader_msv1_0_Version_Info {
+rule AcidBox_SSP_DLL_Loader_msv1_1_Version_Info {
     meta:
-        description = "Detects AcidBox SSP DLL loaders, based on a unique version information of 'msv1_0'"
+        description = "Detects AcidBox SSP DLL loaders, based on a unique version information of 'msv1_1.dll'"
         author = "BitsOfBinary"
         reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
         
     condition:
-        pe.version_info["InternalName"] == "msv1_0.dll"
+        pe.version_info["InternalName"] == "msv1_1.dll"
+}
+
+import "pe"
+
+rule AcidBox_SSP_DLL_Loader_pku_Version_Info {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique version information of 'pku.dll'"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        
+    condition:
+        pe.version_info["InternalName"] == "pku.dll"
 }
 ```
 
