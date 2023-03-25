@@ -1,0 +1,29 @@
+---
+layout: post
+title: "100 Days of YARA - Day 84"
+date: 2023-03-25 00:00:00 -0000
+categories: yara
+---
+
+# AcidBox - SSP DLL PE Meta Features - Part 3
+While on the topic of version info, the [Palo Alto blog for AcidBox](https://unit42.paloaltonetworks.com/acidbox-rare-malware/) mentions that the following filenames were used:
+- `msv1_0.dll`
+- `pku2u.dll`
+- `wdigest.dll`
+
+We've covered `wdigest.dll` in our previous rule, and `pku2u.dll` seems to be a legitimate DLL. However, we could still make a hunting rule looking for `msv1_0.dll` which appears to be much less common:
+```
+import "pe"
+
+rule AcidBox_SSP_DLL_Loader_msv1_0_Version_Info {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique version information of 'msv1_0'"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        
+    condition:
+        pe.version_info["InternalName"] == "msv1_0.dll"
+}
+```
+
+It is worth looking for opportunities to write YARA rules for indicators of compromise mentioned in open source research, even if a sample isn't available.
