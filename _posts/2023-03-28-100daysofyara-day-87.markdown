@@ -36,3 +36,5 @@ rule AcidBox_SSP_DLL_Loader_Crypto_Routine_A {
         any of them
 }
 ```
+
+Note: I always find it useful to copy the code we've signatured into the rule itself as a comment. That way, anyone reading it can see what the bytes represent, rather than having to go disassemble them themselves.
