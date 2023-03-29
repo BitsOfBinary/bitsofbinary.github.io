@@ -10,7 +10,7 @@ In the previous post's example, I copied the code straight from the binary itsel
 
 In particular, we are able to add wildcard operators to hex strings using `?` characters, which we could use to mask bytes that may change between samples. This could be used for masking stack offsets that may change, changing the type of register used, or fully masking addresses that will likely change across variants.
 
-While we could open the x86 manual and do this ourselves (which I still recommend trying at least once!), we can actually take advantage of a default Ghidra plugin to help us with this! That is, [YaraGhidraGUIScript.java](https://github.com/NationalSecurityAgency/ghidra/blob/master/Ghidra/Features/Base/ghidra_scripts/YaraGhidraGUIScript.java) can come in very handy. If I select a block of code, and execute this plugin, we can see the following output
+While we could open the x86 manual and do this ourselves (which I still recommend trying at least once!), we can actually take advantage of a default Ghidra plugin to help us with this! That is, [YaraGhidraGUIScript.java](https://github.com/NationalSecurityAgency/ghidra/blob/master/Ghidra/Features/Base/ghidra_scripts/YaraGhidraGUIScript.java) can come in very handy. If I select a block of code, and execute this plugin, we can see the following output:
 ![](/assets/2023-03-29_ghidra_yara_output.png)
 
 As you can see from the default output, some instructions have already been masked, changing some default registers. So already, we have a slightly looser rule we can use:
@@ -36,4 +36,4 @@ rule AcidBox_SSP_DLL_Loader_Crypto_Routine_B {
 }
 ```
 
-We'll discuss in the next post a bit more about this script + masking code.
+We'll discuss in the next post a bit more about this Ghidra script + masking code.
