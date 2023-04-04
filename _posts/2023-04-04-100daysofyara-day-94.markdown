@@ -1,0 +1,41 @@
+---
+layout: post
+title: "100 Days of YARA - Day 94"
+date: 2023-04-04 00:00:00 -0000
+categories: yara
+---
+
+# AcidBox - Main Worker DLL Technique - SeLoadDriverPrivilege Stack String - Part 1
+To change things up a bit, let's look at the [AcidBox main worker DLL referenced by Palo Alto](https://unit42.paloaltonetworks.com/acidbox-rare-malware/): `eb30a1822bd6f503f8151cb04bfd315a62fa67dbfe1f573e6fcfd74636ecedd5`
+
+A lot of our already written rules hit on this sample, including the format strings combo, crypto routine, and return codes. So we already have some good coverage! Instead of writing a YARA rule for strings, meta features, or code, let's instead focus on a technique to signature.
+
+The main worker DLL uses stack strings to obfuscate some of the important strings (which is similar to the loader, which explains why we weren't seeing as many strings in plaintext). One in particular is the string `SeLoadDriverPrivilege`, which is being used to attempt to set a new privilege level for itself. The following blog has some explanations about why/how it can be used maliciously: [https://www.tarlogic.com/blog/seloaddriverprivilege-privilege-escalation/](https://www.tarlogic.com/blog/seloaddriverprivilege-privilege-escalation/)
+
+![](/assets/2023-04-04_main_worker_stack_string.PNG)
+
+If you're looking at stack strings, I can recommend [@notareverser's](https://twitter.com/notareverser) Python script to generate variations of possible stack strings for a provided input: [https://gist.github.com/notareverser/4f6b9c644d4fe517889b3fbb0b4271ca](https://gist.github.com/notareverser/4f6b9c644d4fe517889b3fbb0b4271ca)
+
+If we input `SeLoadDriverPrivilege` into this script, we get the following rule:
+```
+rule stackstring_SeLoadDriverPrivilege
+{
+  strings:
+   $smallStack = {c6(45|4424)??53 c6(45|4424)??65 c6(45|4424)??4c c6(45|4424)??6f c6(45|4424)??61 c6(45|4424)??64 c6(45|4424)??44 c6(45|4424)??72 c6(45|4424)??69 c6(45|4424)??76 c6(45|4424)??65 c6(45|4424)??72 c6(45|4424)??50 c6(45|4424)??72 c6(45|4424)??69 c6(45|4424)??76 c6(45|4424)??69 c6(45|4424)??6c c6(45|4424)??65 c6(45|4424)??67 c6(45|4424)??65}
+
+   $largeStack = {c7(45|85)[1-4]53000000 c7(45|85)[1-4]65000000 c7(45|85)[1-4]4c000000 c7(45|85)[1-4]6f000000 c7(45|85)[1-4]61000000 c7(45|85)[1-4]64000000 c7(45|85)[1-4]44000000 c7(45|85)[1-4]72000000 c7(45|85)[1-4]69000000 c7(45|85)[1-4]76000000 c7(45|85)[1-4]65000000 c7(45|85)[1-4]72000000 c7(45|85)[1-4]50000000 c7(45|85)[1-4]72000000 c7(45|85)[1-4]69000000 c7(45|85)[1-4]76000000 c7(45|85)[1-4]69000000 c7(45|85)[1-4]6c000000 c7(45|85)[1-4]65000000 c7(45|85)[1-4]67000000 c7(45|85)[1-4]65000000}
+
+   $register = {b?53000000 6689???? b?65000000 6689???? b?4c000000 6689???? b?6f000000 6689???? b?61000000 6689???? b?64000000 6689???? b?44000000 6689???? b?72000000 6689???? b?69000000 6689???? b?76000000 6689???? b?65000000 6689???? b?72000000 6689???? b?50000000 6689???? b?72000000 6689???? b?69000000 6689???? b?76000000 6689???? b?69000000 6689???? b?6c000000 6689???? b?65000000 6689???? b?67000000 6689???? b?65000000 6689????}
+
+   $dword = {c7(45|85)[1-4]6f4c6553 c7(45|85)[1-4]72446461 c7(45|85)[1-4]72657669 c7(45|85)[1-4]76697250 c7(45|85)[1-4]67656c69 [0-1]c6(45|85)[1-4]65}
+
+   $pushpop = {6a535? 6a65 6689????5? 6a4c 6689????5? 6a6f 6689????5? 6a61 6689????5? 6a64 6689????5? 6a44 6689????5? 6a72 6689????5? 6a69 6689????5? 6a76 6689????5? 6a65 6689????5? 6a72 6689????5? 6a50 6689????5? 6a72 6689????5? 6a69 6689????5? 6a76 6689????5? 6a69 6689????5? 6a6c 6689????5? 6a65 6689????5? 6a67 6689????5?}
+
+   $callOverString = {e81500000053654c6f616444726976657250726976696c6567655? }
+
+  condition:
+    any of them
+}
+```
+
+Unforunately in this case, the stack string is being built up out of order, meaning this auto-generated rule won't be able to pick it up. So let's look in the next post about a way we can deal with this.
