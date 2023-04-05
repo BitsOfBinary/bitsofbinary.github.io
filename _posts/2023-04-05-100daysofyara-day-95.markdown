@@ -1,0 +1,76 @@
+---
+layout: post
+title: "100 Days of YARA - Day 95"
+date: 2023-04-05 00:00:00 -0000
+categories: yara
+---
+
+# AcidBox - Main Worker DLL Technique - SeLoadDriverPrivilege Stack String - Part 2
+Let's look at the code that is loading the stack string:
+```
+       1800097cf c7  44  24       MOV        dword ptr [RSP  + Stack [-0x21 ]],"eliv"
+                 37  76  69 
+                 6c  65
+       1800097d7 c7  44  24       MOV        dword ptr [RSP  + local_2f[0] ],"aoLe"
+                 29  65  4c 
+                 6f  61
+       1800097df 66  c7  44       MOV        word ptr [RSP  + local_1f +0x2 ],"eg"
+                 24  3b  67  65
+       1800097e6 c7  44  24       MOV        dword ptr [RSP  + local_2f[5] ],"virD"
+                 2e  44  72 
+                 69  76
+       1800097ee c7  44  24       MOV        dword ptr [RSP  + Stack [-0x25 ]],"irPr"
+                 33  72  50 
+                 72  69
+       1800097f6 c6  44  24       MOV        byte ptr [RSP  + local_2f[4] ],'d'
+                 2d  64
+       1800097fb c6  44  24       MOV        byte ptr [RSP  + Stack [-0x26 ]],'e'
+                 32  65
+       180009800 c6  44  24       MOV        byte ptr [RSP  + local_30 ],'S'
+                 28  53
+```
+
+As we can see, the different parts of the string are being loaded on to the stack out of order, and in variable amounts: either 1, 2, or 4 bytes at a time. As we can see, each set of instructions looks like this (note that we're adding wildcards to the stack offsets):
+- 1-byte - `C6 44 24 ?? AA`
+- 2-byte - `66 C7 44 24 ?? AA BB`
+- 4-byte - `C7 44 24 ?? AA BB CC DD`
+
+So, if we want to write a YARA rule for this stack string, we will have to do it in an un-ordered way, and if we want to hunt for more samples we can't necessarily assume that it will be in the same order we observe here. As such, we will need to generate all possible instructions for loading the characters onto the stack. The following Python code can do this for us, and format them as YARA strings:
+```python
+import binascii
+
+api_name = "SeLoadDriverPrivilege"
+
+one_byte_strs = []
+two_byte_strs = []
+four_byte_strs = []
+
+for c in api_name:
+    hex_str = f"$one_byte_mov_{c}_stack = {{C6 44 24 ?? {format(ord(c), 'x')}}}"
+    
+    if hex_str not in one_byte_strs:
+        one_byte_strs.append(hex_str)
+        
+for i in range(0, len(api_name)-1):
+    chars = api_name[i:i+2]
+    two_bytes = binascii.hexlify(chars.encode(), ' ').decode()
+    
+    hex_str = f"$two_byte_mov_{chars}_stack = {{66 C7 44 24 ?? {two_bytes}}}"
+    
+    if hex_str not in two_byte_strs:
+        two_byte_strs.append(hex_str)
+        
+for i in range(0, len(api_name)-3):
+    chars = api_name[i:i+4]
+    four_bytes = binascii.hexlify(chars.encode(), ' ').decode()
+    
+    hex_str = f"$four_byte_mov_{chars}_stack = {{C7 44 24 ?? {four_bytes}}}"
+    
+    if hex_str not in four_byte_strs:
+        four_byte_strs.append(hex_str)
+        
+for string in one_byte_strs + two_byte_strs + four_byte_strs:
+    print(string)
+```
+
+We'll start building YARA rules with these values in the next post.
