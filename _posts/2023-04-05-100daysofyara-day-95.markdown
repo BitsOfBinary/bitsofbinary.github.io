@@ -37,6 +37,7 @@ As we can see, the different parts of the string are being loaded on to the stac
 
 So, if we want to write a YARA rule for this stack string, we will have to do it in an un-ordered way, and if we want to hunt for more samples we can't necessarily assume that it will be in the same order we observe here. As such, we will need to generate all possible instructions for loading the characters onto the stack. The following Python code can do this for us, and format them as YARA strings:
 ```python
+{% raw %}
 import binascii
 
 api_name = "SeLoadDriverPrivilege"
@@ -71,6 +72,7 @@ for i in range(0, len(api_name)-3):
         
 for string in one_byte_strs + two_byte_strs + four_byte_strs:
     print(string)
+{% endraw %}
 ```
 
 We'll start building YARA rules with these values in the next post.
