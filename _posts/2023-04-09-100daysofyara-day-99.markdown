@@ -1,0 +1,27 @@
+---
+layout: post
+title: "100 Days of YARA - Day 99"
+date: 2023-04-09 00:00:00 -0000
+categories: yara
+---
+
+# AcidBox Wrapup
+Despite spending many posts looking at [AcidBox](https://unit42.paloaltonetworks.com/acidbox-rare-malware/), I feel like there is still more that can be done! I haven't looked at the kernel module, or focused on any meta features of the main worker DLL.
+
+However, as I stated back at the start of the AcidBox analysis, I believe I have followed the approach I set out to do, which is as follows:
+- Accessibility - I've made my rule names and descriptions clear, while referencing the Palo Alto blog and hash values I used to write the rules with
+- Simplicity - I've stuck to a single idea per rule to try and keep the logic straightforward and understandable
+- Redundancy - by writing rules for strings, meta features, code, and techniques, we now have a collection of rules not just for multiple facets of AcidBox, but some heuristic rules that can be used to classify other samples as well
+
+## Private Rules
+You may not like that each rulename itself is very descriptive; instead, maybe all you care about is having a rule that tells you "is this AcidBox?". This could be done via [private YARA rules](https://yara.readthedocs.io/en/stable/writingrules.html#private-rules), by taking each rule that we've written for AcidBox in these posts, making them `private`, and then [referencing them in one main rule](https://yara.readthedocs.io/en/stable/writingrules.html#referencing-rules):
+```
+rule AcidBox {
+    condition:
+        any of (AcidBox*)
+}
+```
+
+You could then decide how strong you want this condition to be. Maybe you want to be confident that it is indeed AcidBox by relying on it covering multiple facets; so you could increase the condition to `2 of them`, or break it out further into checking specific combinations of rules (e.g. checking for error codes AND format strings, etc.).
+
+I hope these posts have shown how you can tackle writing rules for a malware family!
