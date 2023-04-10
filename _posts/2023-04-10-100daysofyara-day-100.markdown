@@ -1,0 +1,28 @@
+---
+layout: post
+title: "100 Days of YARA - Day 100"
+date: 2023-04-10 00:00:00 -0000
+categories: yara
+---
+
+# 100 Days of YARA Wrapup
+We have made it to day 100!! While I haven't written tonnes of YARA rules for this series, I'm proud of the fact that I've done a post each day.
+
+In these posts, I have covered:
+- The LNK module I wrote for YARA
+- Some of the fundamentals of strings and modifiers (plus using them in ways that may not be known)
+- YARA performance basics
+- Different command line options for YARA
+- A case study of writing rules for the AcidBox malware framework
+
+It has been fun to write these posts, and learn from others in the process! In particular, I've been learning a lot about performance through conversations on Twitter.
+
+Shoutout to [Greg](https://twitter.com/greglesnewich) for organising and starting this trend of 100 Days of YARA, and shoutout to all those who have done posts over the last few months (including [@shellcromancer](https://twitter.com/shellcromancer), [@Qutluch](https://twitter.com/Qutluch), [@dan__mayer](https://twitter.com/dan__mayer), [@wxs](https://twitter.com/wxs), [@notareverser
+](https://twitter.com/notareverser), [@stvemillertime](https://twitter.com/stvemillertime) - sorry to those who I haven't mentioned!). I can't wait to see what YARA will look like in 2024!
+
+## Bonus: Index of Coincidence
+As a last minute addition to `#100DaysofYARA`, I've made a pull request to add functions to the `math` module to implement [index of coincidence](https://en.wikipedia.org/wiki/Index_of_coincidence): [https://github.com/VirusTotal/yara/pull/1907](https://github.com/VirusTotal/yara/pull/1907)
+
+This index can be used as a rough measure of whether a plaintext string is English, or closer to being "random". For example, English text will have an index around `0.067`. You can play with this in [CyberChef](https://gchq.github.io/CyberChef/#recipe=Index_of_Coincidence%28%29).
+
+This could be useful for heuristic rules where you're using wildcards/regex strings to see what "structure" the strings have. For example, you could look for variables in scripting languages that are long and made up of "random" characters (i.e. they are obfuscated), which will likely have a lower index of coincidence value than regular variable names.
