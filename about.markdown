@@ -6,7 +6,11 @@ permalink: /about/
 
 I am a threat intelligence analyst, who favours malware reverse engineering. This blog will be used to document different parts of threat intelligence I'm interested in, potentially including malware analysis, reverse engineering, writing YARA rules, etc.
 
+### Blogs
+- [What IIS that malware?](https://www.pwc.com/gx/en/issues/cybersecurity/cyber-threat-intelligence/what-iis-that-malware.html) (November 2023)
+
 ### Conference talks
+- [Brave New World: Understanding the developing techniques of threat actors](https://www.crestcon.org/europe/attend-schedule/) (May 2023)
 - [Learning to ChaCha with APT41Learning to ChaCha with APT41](https://securelist.com/webinars/sas-2021-learning-to-chacha-with-apt41/) (September 2021)
 - [xStart when you're ready](https://www.youtube.com/watch?v=SuJIJnE_o8U) (January 2021)
 - [Lazarus’ Dtrack marathon: A retrospective analysis of Dtrack campaigns](https://www.youtube.com/watch?v=TKeQ0LgAVQM) (September 2020)
