@@ -656,3 +656,353 @@ rule Heuristic_LNK_Hidden_Link_Target {
 ```
 
 (**Note:** this bit being set appears to be very common, so on it's own may not be enough for a good hunting rule, but combined with other values could lead to some interesting ones)
+
+# Day 11 - LNK Hotkeys
+While I'm not sure how much value this will have from a threat hunting perspective, LNK files can be run via keyboard shortcuts. Maybe you find a threat actor has a particular shortcut it likes? You can track that with YARA:
+```
+import "lnk"
+
+rule Heuristic_LNK_using_Shortcut_F5 {
+    meta:
+        description = "Detects LNKs using the keyboard shortcut 'F5'"
+        
+    condition:
+        lnk.hotkey == "F5"
+}
+```
+
+There is also a corresponding `hotkey_modifier_flags` value that specifies if any/a combination of `HOTKEYF_SHIFT`, `HOTKEYF_CONTROL`, or `HOTKEYF_ALT` need to be pressed to activate the hotkey:
+```
+import "lnk"
+
+rule Heuristic_LNK_using_Shift_Modifier {
+    meta:
+        description = "Detects LNKs using a keyboard shortcut, with modifier shift"
+        
+    condition:
+        lnk.hotkey_modifier_flags & lnk.HOTKEYF_SHIFT
+}
+```
+
+A potential way to hunt for interesting LNK samples may be to look for ones using common keyboard shortcuts for the LNK shortcut. For example, I find myself using `Ctrl-C` a lot to copy text, so perhaps a threat actor could abuse that to delay execution of an LNK dropped to my system until I next pressed `CTRL-C`?
+```
+import "lnk"
+
+rule Heuristic_LNK_using_Hotkey_Ctrl_C {
+    meta:
+        description = "Detects LNKs using the keyboard hotkey Ctrl-C"
+        
+    condition:
+        lnk.hotkey == "C" and 
+        lnk.hotkey_modifier_flags & lnk.HOTKEYF_CONTROL
+}
+```
+
+# Day 12 - LNK LinkInfo - Part 1
+One of the useful structures to signature in LNK files is `LinkInfo`. Microsoft's description can be seen below:
+![Link Info Description](/assets/2023-01-12_link_info_description.png)
+
+The first section of this structure to focus on is the `VolumeID`, which `specifies information about the volume that a link target was on when the link was created`. This could therefore give some very useful information about the system used to generate the LNK file (which may well be a threat actor's system).
+
+An entry in `VolumeID` is the `DriveType`, which `specifies the type of drive the link target is stored on`. This could be a fixed drive, a remote drive, or even removable media or a RAM disk!
+
+![Drive Type Values](/assets/2023-01-12_drive_type_values.png)
+
+Here's an example rule to pick up LNKs targeting files on removable media:
+```
+import "lnk"
+
+rule Heuristic_LNK_Targeting_File_On_Removable_Media {
+    condition:
+        lnk.link_info.volume_id.drive_type & lnk.DRIVE_REMOVABLE
+}
+```
+
+# Day 13 - LNK LinkInfo - Part 2
+Perhaps an even more useful component of the `VolumeID` structure is `DriveSerialNumber`, which could be used to cluster samples together generated on the same hard drive. This is one I've not seen used as much in clustering of LNK files so far:
+```
+import "lnk"
+
+rule LNK_Specific_DriveSerialNumber {
+    condition:
+        lnk.link_info.volume_id.drive_serial_number == 0x307A8A81
+}
+```
+
+It would be interesting to see how much clustering could be done with LNKs that have had other metadata stripped/modified (such as the `MachineID` which I'll talk about later on).
+
+An example rule using this value can be seen below, which detects an LNK dropping Emotet from May 2022:
+```
+import "lnk"
+
+rule Emotet_LNK_Drive_Serial_May_2022 {
+    meta:
+        description = "Detects an LNK from May 2022 tagged as dropping Emotet based on a unique drive serial"
+        hash = "b7d217f13550227bb6d80d05bde26e43cd752a870973052080a72a510c444b5a"
+        
+    condition:
+        lnk.link_info.volume_id.drive_serial_number == 0x1c853811
+}
+```
+
+As I like to highlight, this could be done in pure YARA with the following rule:
+```
+rule Emotet_LNK_Drive_Serial_May_2022 {
+    meta:
+        description = "Detects an LNK from May 2022 tagged as dropping Emotet based on a unique drive serial"
+        hash = "b7d217f13550227bb6d80d05bde26e43cd752a870973052080a72a510c444b5a"
+
+    strings:
+        $drive_serial = {11 38 85 1c}
+    
+    condition:
+        uint32(0) == 0x0000004c and any of them
+}
+```
+
+The `lnk.link_info.volume_id.data` also contains the `volume label of the drive`, but I'm not sure how useful this would be for clustering purposes.
+
+# Day 14 - LNK LinkInfo - Part 3
+The `LocalBasePath` variable which is `used to construct the full path to the link item or link target` can another good indicator. This variable will either point to the file you want to open with the shortcut, or to the binary you wish to execute with a shortcut (minus the command line arguments, that's in another variable that we'll get to later). For example, looking for a specific path:
+```
+import "lnk"
+
+rule LNK_LocalBasePath_Example {
+    condition:
+        lnk.link_info.local_base_path == "C:\\test\\a.txt"
+}
+```
+
+Or, maybe for more heuristic rules:
+```
+import "lnk"
+
+rule Heuristic_LNK_LocalBasePath_in_TEMP {
+    meta:
+        description = "Detects LNK files with a local base path pointing at the %TEMP% folder"
+        
+    condition:
+        lnk.link_info.local_base_path icontains "TEMP"
+}
+```
+
+Generally, if you're looking for execution of non-standard binaries via LNKs, this variable will be useful for you, e.g.:
+```
+import "lnk"
+
+rule Heuristic_LNK_LocalBasePath_mshta {
+    meta:
+        description = "Detects LNK files pointing at mshta"
+        
+    condition:
+        lnk.link_info.local_base_path icontains "mshta"
+}
+```
+
+# Day 15 - LNK LinkInfo - Part 4
+In reading the LNK documentation, all kinds of structures can be seen that are otherwise uncommon, but may be useful in more niche circumstances! For example, the `CommonNetworkRelativeLink` is a structure present when an LNK points to a file on a network share.
+
+![CommonNetworkRelativeLink](/assets/2023-01-15_commonnetworkrelativelink.png)
+
+While I've not seen this structure in practice for malicious LNKs myself, this could still be useful for hunting purposes to find suspicious LNKs:
+```
+import "lnk"
+
+rule Heuristic_LNK_Pointing_to_Network_Share {
+    meta:
+        description = "Detects an LNK pointing to the network share '\\\\server\\share'"
+        
+    condition:
+        lnk.link_info.common_network_relative_link.net_name == "\\\\server\\share"
+}
+```
+
+# Day 16 - LNK StringData - Part 1
+Now that we've looked through `LinkInfo`, we can move to the next optional section of LNK files: `StringData`. This optional set of structures can contain five different entries:
+- `NAME_STRING`
+- `RELATIVE_PATH`
+- `WORKING_DIR`
+- `COMMAND_LINE_ARGUMENTS`
+- `ICON_LOCATION`
+
+![StringData Descriptions](/assets/2023-01-16_stringdata_descriptions.png)
+
+It's worth spending a bit of time on these structures, as they can contain some useful information. I'll spend the next couple of posts going into detail on these.
+
+To start off with, the `NAME_STRING` entry is perhaps the least useful of the five from a detection/threat hunting perspective, unless you want to hunt for LNKs that have it set to spoof some specific software, for example:
+
+```
+import "lnk"
+
+rule LNK_With_WinRAR_Description {
+    meta:
+        description = "Detects LNK files with a description matching that of the WinRAR"
+    
+    condition:
+        // Process RAR, ZIP and other archive formats
+        lnk.name_string == "P\x00r\x00o\x00c\x00e\x00s\x00s\x00 \x00R\x00A\x00R\x00,\x00 \x00Z\x00I\x00P\x00 \x00a\x00n\x00d\x00 \x00o\x00t\x00h\x00e\x00r\x00 \x00a\x00r\x00c\x00h\x00i\x00v\x00e\x00 \x00f\x00o\x00r\x00m\x00a\x00t\x00s\x00"
+}
+```
+
+# Day 17 - LNK StringData - Part 2
+The `RELATIVE_PATH`, `WORKING_DIR` and `COMMAND_LINE_ARGUMENTS` are all somewhat related `StringData` entries. That is, they collectively describe the filename, directory, and command line arguments for the file the LNK is targeting. These can lead to a lot of useful data points from a detection perspective; particularly `COMMAND_LINE_ARGUMENTS`.
+
+In fact, a lot of current open source YARA rules implicitly use these fields, even if they don't target them directly. [Bart's LNK ruleset](https://github.com/bartblaze/Yara-rules/blob/master/rules/generic/LNK_Ruleset.yar) contains rules looking for references to scripting languages (i.e. in the command line), long relative paths, and references to binaries used to execute files (such as `rundll32.exe`).
+
+Many different types of YARA rules for LNKs are possible without the LNK module, and that's a good thing! However, I hope that these fields being exposed directly through a YARA module will allow us all to be much more specific in the types of rules we want to write.
+
+So for instance, if we want to look for `/c` in a command line argument of an LNK file (i.e. to run them command then terminate the instance of `cmd.exe`), this is currently a bit harder to specify without it potentially being more false positive-prone (and having some performance concerns):
+```
+rule Heuristic_LNK_Slash_c_In_Command_Line {
+    meta:
+        description = "Detects LNK files that have '/c' in its command line"
+        
+    strings:
+        $ = "/c" ascii wide
+        
+    condition:
+        uint32be(0) == 0x4C000000 and
+        uint32be(4) == 0x01140200 and
+        uint32be(8) == 0x00000000 and
+        uint32be(12) == 0xC0000000 and
+        uint32be(16) == 0x00000046 and
+        any of them
+}
+```
+
+However, using the LNK module, we can be more precise, and hopefully avoid looking in large files for all occurances of `/c`:
+```
+import "lnk"
+
+rule Heuristic_LNK_Slash_c_In_Command_Line {
+    meta:
+        description = "Detects LNK files that have '/c' in its command line"
+        
+    condition:
+        lnk.command_line_arguments contains "/\\x00c"
+}
+```
+
+## Asides
+- The benefit of using the LNK module is we can drop the condition using all the `uint32be` statements checking whether a file is an LNK, as the module will guarantee that the file is an LNK if the field `lnk.command_line_arguments` is present
+- At the moment you can see an annoying design of LNKs in that the `StringData` fields are either unicode, or whatever the default code page of the system the LNK is generated on is. This means we have to include null characters in the string to check. While I'd like the module to convert these fields to ASCII, this could lose information that might otherwise be important. Let me know what you think about having something like a `lnk.command_line_arguments_ascii` field. Potentially another solution would be to add support to YARA for wide character string comparisons, such as `lnk.command_line_arguments contains L"/c"` (`L` is the default syntax used to define wide character strings in C).
+
+**Edit:** I've added an issue to YARA to add `L""` as a modifier: [https://github.com/VirusTotal/yara/issues/1863](https://github.com/VirusTotal/yara/issues/1863)
+
+# Day 18 - LNK StringData - Part 3
+Last but not least in the `StringData` section is `ICON_LOCATION`, which `specifies the location of the icon to be used when displaying a shell link item in an icon view`. This structure has an interesting case study I observed in some [research I conducted into APT41](https://securelist.com/webinars/sas-2021-learning-to-chacha-with-apt41/) as part of my job.
+
+In some LNK files related to the threat actor, it used icon locations such as `.\1.pdf` and `.\1.doc`. While these icon locations may not point to a real file on the system, this value being present will set the icon for the LNK file being that of either a PDF or Microsoft Office file respectively. This can make the LNK file look more convincing.
+
+I [shared the following open source YARA rule](https://github.com/PwCUK-CTO/TheSAS2021-Red-Kelpie/blob/main/yara/red_kelpie.yar) for this technique:
+```
+rule APT41_Icon_Location_LNK : Red_Kelpie
+{
+    meta:
+        description = "Detects LNK files masquerading as PDFs likely used by APT41"
+        TLP = "WHITE"
+        author = "PwC Cyber Threat Operations :: BitsOfBinary"
+        copyright = "Copyright PwC UK 2021 (C)"
+        license = "Apache License, Version 2.0"
+        created_date = "2021-08-26"
+        modified_date = "2021-08-26"
+        revision = "0"
+        hash = "2218904238dc4f8bb5bb838ed4fa779f7873814d7711a28ba59603826ae020aa"
+        hash = "5904bc90aec64b12caa5d352199bd4ec2f5a3a9ac0a08adf954689a58eff3f2a"
+        hash = "c98ac83685cb5f7f72e832998fec753910e77d1b8eee638acb508252912f6cf6"
+        hash = "a44b35f376f6e493580c988cd697e8a2d64c82ab665dfd100115fb6f700bb82a"
+
+    strings:
+        $pdf = ".\\1.pdf" ascii wide
+        $doc = ".\\1.doc" ascii wide
+        
+    condition:
+        uint32be(0) == 0x4C000000 and
+        uint32be(4) == 0x01140200 and
+        uint32be(8) == 0x00000000 and
+        uint32be(12) == 0xC0000000 and
+        uint32be(16) == 0x00000046 and
+        any of them
+}
+```
+
+While in hindsight I don't believe that all samples with these icon locations are related to APT41 (hence the fortunate use of `likely` in the rule description), this rule has generally been useful in finding malicious LNK files masquerading as either PDFs or Word documents. 
+
+If you wanted to recreate this rule with the LNK module, you could do it as such:
+```
+import "lnk"
+
+rule Heuristic_LNK_Icon_Location_Masquerading_as_Doc_or_PDF {
+    condition:
+        lnk.icon_location contains ".\\x00\\\\x001\\x00.\\x00p\\x00d\\x00f" or
+        lnk.icon_location contains ".\\x00\\\\x001\\x00.\\x00d\\x00o\\x00c"
+}
+```
+
+No `strings:` section needed here.
+
+If you're interested in this research into APT41, you can find the slides, full set of YARA rules, and link to the recording here: [https://github.com/PwCUK-CTO/TheSAS2021-Red-Kelpie/blob/main/yara/red_kelpie.yar](https://github.com/PwCUK-CTO/TheSAS2021-Red-Kelpie/blob/main/yara/red_kelpie.yar)
+
+# Day 19 - LNK ExtraData
+The next few posts will focus on the final set of optional structures in LNK files, which are in the `ExtraData` section.
+
+![ExtraData structures](/assets/2023-01-19_extradata_structures.png "ExtraData Structures")
+
+As you can see, these consist of 11 different structures, which I'll list below with a description from the LNK docs:
+- `CONSOLE_PROPS`: specifies the display settings to use when a link target specifies an application that is run in a console window.
+- `CONSOLE_FE_PROPS`: specifies the code page to use for displaying text when a link target specifies an application that is run in a console window.
+- `DARWIN_PROPS`: specifies an application identifier that can be used instead of a link target IDList to install an application when a shell link is activated.
+- `ENVIRONMENT_PROPS`: specifies a path to environment variable information when the link target refers to a location that has a corresponding environment variable.
+- `ICON_ENVIRONMENT_PROPS`: specifies the path to an icon. The path is encoded using environment variables, which makes it possible to find the icon across machines where the locations vary but are expressed using environment variables.
+- `KNOWN_FOLDER_PROPS`: specifies the location of a known folder. This data can be used when a link target is a known folder to keep track of the folder so that the link target IDList can be translated when the link is loaded.
+- `PROPERTY_STORE_PROPS`: specifies a set of properties that can be used by applications to store extra data in the shell link.
+- `SHIM_PROPS`: specifies the name of a shim that can be applied when activating a link target.
+- `SPECIAL_FOLDER_PROPS`: specifies the location of a special folder. This data can be used when a link target is a special folder to keep track of the folder, so that the link target IDList can be translated when the link is loaded.
+- `TRACKER_PROPS`: specifies data that can be used to resolve a link target if it is not found in its original location when the link is resolved. This data is passed to the Link Tracking service to find the link target.
+- `VISTA_AND_ABOVE_IDLIST_PROPS`: specifies an alternate IDList that can be used instead of the LinkTargetIDList structure (section 2.2) on platforms that support it.
+
+As such, there is a lot of possibilities for detection rules based on these structures! Let's start looking into those in the next posts.
+
+# Day 20 - LNK CONSOLE_PROPS - Part 1
+The LNK `CONSOLE_PROPS` gives information on how to display the LNK to the user. [@greglesnewich](https://twitter.com/greglesnewich) has done a really cool [Jupyter notebook](https://github.com/g-les/100DaysofYARA/blob/main/100DaysofYARA_2023_Week1_LNKPark.ipynb) used to analyse and write some YARA rules based on this section. In particular, he has written a rule that will look for LNKs that have set both `WindowSizeX` and `WindowSizeY` to 1 pixel, and `ScreenBufferSizeX` and `ScreenBufferSizeY` to also be of size 1, [and done it using pure YARA](https://github.com/100DaysofYARA/2023/blob/main/glesnewich/SUSP_LNK_SmallScreenSize.yar) (i.e. no modules involved!).
+
+```
+rule SUSP_LNK_SmallScreenSize
+{
+    meta:
+        author = "Greg Lesnewich"
+        description = "check for LNKs that have a screen buffer size and WindowSize dimensions of 1x1"
+        date = "2023-01-01"
+        version = "1.0"
+        DaysofYARA = "1/100"
+
+    strings:
+        $dimensions = {02 00 00 A0 ?? 00 ?? ?? 01 00 01 00 01}
+        // struct ConsoleDataBlock sConsoleDataBlock
+        // uint32 Size
+        // uint32 Signature
+        // enum FillAttributes
+        // enum PopupFillAttributes
+        // uint16 ScreenBufferSizeX
+        // uint16 ScreenBufferSizeY
+        // uint16 WindowSizeX
+        // uint16 WindowSizeY
+    condition:
+        uint32be(0x0) == 0x4c000000 and all of them
+}
+```
+
+I love this rule, as it shows how capable YARA is without even needing anything extra. Greg is using the fact that the `ConsoleDataBlock` structure has a fixed `BlockSignature` of `0xA0000002` to "parse" out the relevant variables in a hex string (using wildcards to skip the ones he doesn't care about). No LNK module needed!
+
+So why do I still think the LNK module is useful? First, this approach will not always be possible in LNKs using pure YARA (we can fortunately rely on `BlockSignature` values here to find the right structure). Second, even when it's possible, it requires some understanding enough about the YARA syntax (as Greg clearly does) to write a rule to take advantage of this!
+
+## Creating an LNK with CONSOLE_PROPS
+Not all LNKs come with with `ConsoleDataBlock` structure, so if we want to experiment with values we'll need to be able to generate them! The best way I've found to do this on Windows 11 is:
+- Create shortcut link for `cmd.exe`
+- Right click on the shortcut and go to `Properties`
+- Go on the `Layout` tab
+- Edit the `Screen buffer size` and `Window size` values to all be `1`
+
+![LNK with 1x1 pixel console window](/assets/2023-01-20_shortcut_lnk_with_1_pixel_window.png)
+
+In the next post we'll recreate Greg's rule using the LNK module.
