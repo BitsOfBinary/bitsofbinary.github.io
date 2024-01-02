@@ -106,7 +106,7 @@ date: 2023-01-01 00:00:00 -0000
 categories: yara
 ---
 
-## Note
+# Note
 This is a consolidated post of all 100 days of posts from 2023. These fall roughly into the following sections:
 - Days 1-4 - Introduction to YARA modules
 - Days 5-30 - Highlighting the YARA LNK module
