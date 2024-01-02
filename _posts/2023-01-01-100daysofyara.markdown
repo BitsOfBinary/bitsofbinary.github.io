@@ -61,6 +61,37 @@ redirect_from:
   - /yara/2023/02/26/100daysofyara-day-57.html
   - /yara/2023/02/27/100daysofyara-day-58.html
   - /yara/2023/02/28/100daysofyara-day-59.html
+  - /yara/2023/03/01/100daysofyara-day-60.html
+  - /yara/2023/03/02/100daysofyara-day-61.html
+  - /yara/2023/03/03/100daysofyara-day-62.html
+  - /yara/2023/03/04/100daysofyara-day-63.html
+  - /yara/2023/03/05/100daysofyara-day-64.html
+  - /yara/2023/03/06/100daysofyara-day-65.html
+  - /yara/2023/03/07/100daysofyara-day-66.html
+  - /yara/2023/03/08/100daysofyara-day-67.html
+  - /yara/2023/03/09/100daysofyara-day-68.html
+  - /yara/2023/03/10/100daysofyara-day-69.html
+  - /yara/2023/03/11/100daysofyara-day-70.html
+  - /yara/2023/03/12/100daysofyara-day-71.html
+  - /yara/2023/03/13/100daysofyara-day-72.html
+  - /yara/2023/03/14/100daysofyara-day-73.html
+  - /yara/2023/03/15/100daysofyara-day-74.html
+  - /yara/2023/03/16/100daysofyara-day-75.html
+  - /yara/2023/03/17/100daysofyara-day-76.html
+  - /yara/2023/03/18/100daysofyara-day-77.html
+  - /yara/2023/03/19/100daysofyara-day-78.html
+  - /yara/2023/03/20/100daysofyara-day-79.html
+  - /yara/2023/03/21/100daysofyara-day-80.html
+  - /yara/2023/03/22/100daysofyara-day-81.html
+  - /yara/2023/03/23/100daysofyara-day-82.html
+  - /yara/2023/03/24/100daysofyara-day-83.html
+  - /yara/2023/03/25/100daysofyara-day-84.html
+  - /yara/2023/03/26/100daysofyara-day-85.html
+  - /yara/2023/03/27/100daysofyara-day-86.html
+  - /yara/2023/03/28/100daysofyara-day-87.html
+  - /yara/2023/03/29/100daysofyara-day-88.html
+  - /yara/2023/03/30/100daysofyara-day-89.html
+  - /yara/2023/03/31/100daysofyara-day-90.html
 date: 2023-01-01 00:00:00 -0000
 categories: yara
 ---
@@ -1995,3 +2026,1127 @@ rule IsPE
 **Note**: I can't change the inner `uint32` comparison as that pointer will be little endian; but I can change the comparisons.
 
 Why would you choose one over the other? It's really a matter of preference. The only technical limitation is that the big endian versions were only added in [YARA v3.2.0](https://github.com/VirusTotal/yara/releases/tag/v3.2.0), which was released in November 2014. Ideally, you should be using the latest version, but I believe some tools out there still rely on older versions of YARA.
+
+# Day 60 - File classification: PE files - Alternative approaches
+It can be worth building in some redundancy into the ways you can classify files, in case obfuscation is applied to throw off standard signatures!
+
+For the PE file format, an alternative way of signaturing this file may be to look at the MS-DOS stub: [https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#ms-dos-stub-image-only](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#ms-dos-stub-image-only)
+
+As described in the documentation:
+> The MS-DOS stub is a valid application that runs under MS-DOS. It is placed at the front of the EXE image. The linker places a default stub here, which prints out the message "This program cannot be run in DOS mode" when the image is run in MS-DOS. The user can specify a different stub by using the /STUB linker option.
+
+So we have two options. Either looking for the string `This program cannot be run in DOS mode`, or having a signature for the DOS stub itself. Given we're focusing on offsets at the moment, we'll do the latter.
+
+Take for example `calc.exe`, the DOS stub begins at offset `0x40`, and is made up of the following bytes:
+```
+0E 1F BA 0E 00 B4 09 CD 21 B8 01 4C CD 21
+```
+
+The following blog post has an annotated screenshot of this code: [https://osandamalith.com/2020/07/19/exploring-the-ms-dos-stub/](https://osandamalith.com/2020/07/19/exploring-the-ms-dos-stub/)
+
+So if we take the first few bytes of this stub, we could create the following rule:
+```
+rule IsPE {
+    condition:
+        uint32be(0x40) == 0x0E1FBA0E
+}
+```
+
+So this is a potential alternative approach to finding PE files! What I would caution though is that the documentation above states that `The user can specify a different stub by using the /STUB linker option`, meaning that these bytes won't be as consistent. However, it may be interesting to look for alternative DOS stubs in PE files to see what is being used!
+
+# Day 61 - File classification: PE files - Sufficient checks
+Most of the time if I'm writing a rule to classify PE files, I will abbreviate my condition to:
+```
+rule IsPE
+{
+    condition:
+        uint16(0) == 0x5A4D
+}
+```
+
+That is, I'm only checking for the `MZ` string. Is that enough? Is that sufficient to determine whether a file is a valid PE?
+
+The short answer is no. By doing this, I'm avoiding checking the `PE\x00\x00` string. Neither am I checking for the `This program cannot be run in DOS mode` string which would be [printed out by the DOS stub](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#ms-dos-stub-image-only). I'm certainly not checking for whether the rest of the PE header is valid, or if the sections fit the specific provided, etc.
+
+However, the check `uint16(0) == 0x5A4D` is "good enough". If a file on a machine starts with the characters `MZ`, chances are it is a PE file (there's always the PE module you can use if you want a more thorough check). However, if it isn't a valid PE, this is potentially already a good chance to start writing rules for anomalous files...
+
+Consider the following for instance:
+```
+rule `Heuristic_MZ_Bytes_At_File_Start_Without_DOS_String {
+    strings:
+        $dos_string = "This program cannot be run in DOS mode"
+    
+    condition:
+        uint16(0) == 0x5A4D and not $dos_string
+```
+
+As described, this rule will fire if there is no DOS string in a file that starts with `MZ`. While I can imagine this will yield a lot of FPs, it is one of those rules that could be a useful threat hunting edge case, in case threat actors are trying to hide data in weird ways!
+
+# Day 62 - File classification: ELF files
+What other file types can we write conditions for? Let's consider some other executable file formats, starting with Executable and Linkable Format (ELF).
+
+This file format is used in Linux, and like PE files it has some "magic bytes" [at the start of the binary](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) (as seen in this example from Wikipedia):
+![](/assets/2023-03-03_elf_header_example.png)
+
+As the specification lays out, ELF files will start with the byte `0x7f` followed by the characters `ELF`. We can write a YARA rule for this as follows:
+```
+rule IsELF {
+    condition:
+        uint32be(0) == 0x7f454c46
+}
+```
+
+Note that I'm using the big endian version here, as it means I can copy the bytes straight into the rule in order. You can do a little endian equivalent using `uint32(0) == 0x464c457f`. Again, up to you what you prefer.
+
+# Day 63 - File classification: ELF files - 32 bit or 64 bit?
+Let's say we wanted to write a YARA condition to find 64-bit ELF binaries (without using the ELF module). Let's look at the specification again: [https://en.wikipedia.org/wiki/Executable_and_Linkable_Format](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
+
+The byte at offset `0x4` is either set to `1` for 32-bit binaries, and `2` for 64-bit binaries. Now we can't write this rule with just one check; there is no `uint40` operator unfortunately. However, we can combine multiple checks together to make this work:
+```
+rule IsELF_64bit {
+    condition:
+        // Check for ELF header
+        uint32be(0) == 0x7f454c46 and
+        // Byte at offset 0x4 is 1 for 32-bit, 2 for 64-bit
+        uint8(4) == 2
+}
+```
+
+Couple of notes for this rule:
+- It doesn't really matter if I use `uint8` or `uint8be` for the 32-bit/64-bit check, as the endianess doesn't matter when we're dealing with one byte;
+- You can either use decimal or hexadecimal representations of numbers in YARA; here I'm using the fact that `0x4` is equivalent to decimal `4` in the rule (equally I could use that `0x7f454c46` is equivalent to `2135247942`, but that makes the rule a lot less clear about what it is checking); and,
+- You can use `int` or `uint` as long as you're careful. Here, if I make both checks `int`, it will still work. But you'll need to be careful if you're doing checks against large values (especially if you don't know what they are ahead of time), as you might have to factor in that the `int` versions can also be negative numbers. I tend to use `uint` for ease of knowing the number will always be positive.
+
+# Day 64 - File classification: ELF files - Number of sections case study - Part 1
+As a case study for ELF files, let's consider a slightly more complicated case. Again, we'll reference the specification: [https://en.wikipedia.org/wiki/Executable_and_Linkable_Format](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
+
+If I want to write a rule without using the ELF module to find ELF binaries with only one section (which could be an anomaly if combined with other heuristics), then I need to check a specific offset in the file. However, this offset changes depending on whether the binary is 32-bit or 64-bit; the offets at `0x30` and `0x3c` respectively.
+
+Fortunately, the rule in our previous post guides us on how to check for 32/64-bit binaries. But we run into another problem in that YARA doesn't have if/elseif/else statements. So how do we make sure we use the right offset?
+
+By using `or` statements, we can make branching statements based on the fact that if one statement in total evaluates to `false`, it will move on to the next one. As such, we can create an implicit if/elseif statement using the following:
+```
+rule Heuristic_ELF_with_One_Section {
+    condition:
+        uint32be(0) == 0x7f454c46 and
+        (
+            // 32-bit
+            (
+                uint8(4) == 1 and
+                uint16(0x30) == 1
+            )
+            or
+            // 64-bit
+            (
+                uint8(4) == 2 and
+                uint16(0x3c) == 1
+            )
+        )
+}
+```
+I.e., if we see it is 32-bit, we check offset `0x30`; if either of the statements in that block are false, the `or` statement will then check the second block, which will do a `64-bit` check (i.e. checking offset `0x3c`).
+
+I'll talk in the next post about ways of simplifying this condition a bit.
+
+# Day 65 - File classification: ELF files - Number of sections case study - Part 2
+If you trust the ELF file format enough, we could convert the if/elseif equivalent statements from the rule in the previous post to an if/else equivalent statement, relying on the fact that if it isn't 32-bit, it must be 64-bit:
+```
+rule Heuristic_ELF_with_One_Section {
+    condition:
+        uint32be(0) == 0x7f454c46 and
+        (
+            // 32-bit check
+            (
+                uint8(4) == 1 and
+                uint16(0x30) == 1
+            )
+            or
+            // Assume 64-bit if 32-bit check fails
+            uint16(0x3c) == 1
+        )
+}
+```
+
+This is a condition with less checks involved, but is maybe a little less clear than the previous rule! Adding some comments can clear things up a bit, and I think in general we should strive to make our rules as clear as possible (so maybe in your use case, the rule in the previous post is better as it is more clear on how it works). 
+
+That said, I'll show in the next post how to reduce this condition even further...
+
+# Day 66 - File classification: ELF files - Number of sections case study - Part 3
+If you want to get more creative, and decide you want the number of sections computation done in one line, you could do the following:
+```
+rule Heuristic_ELF_with_One_Section {
+    condition:
+        uint32be(0) == 0x7f454c46 and
+        uint16(0x30 + ((uint8(4) - 1) * 0xc)) == 1
+}
+```
+I.e., if the binary is 32-bit, the expression `(uint8(4) - 1) * 0xc` will collapse to zero, meaning the `uint16` check will point at the `0x30` offset. If it is 64-bit, it will become `0xc`, which will then be added to the `0x30` offset (i.e. `0x3c`). To be honest I think this is unnecessary, and maybe even less efficient (i.e. the previous post's rule will do up to three equals comparisons for the sections check, and while this rule only does one equals comparison it adds three mathematical operations), but I wanted to show this is possible! There's probably an even more efficient way of doing it using logical `&` operations; let me know if you have a better approach!
+
+I hope that by highlighting that despite YARA not having the traditional conditional statements that are expected of programming languages, you can still use the conditions available to create the logical statements you're after.
+
+## Or just use a module...
+Overall, these conditions can start to get quite complicated, so if you've got a module available to help, it might just be easier to use that. Here's the same rule but in its module form:
+```
+import "elf"
+
+rule Heuristic_ELF_with_One_Section {
+    condition:
+        elf.number_of_sections == 1
+}
+```
+
+# Day 67 - File classification: Mach-O files
+Another executable file format is [Mach-O](https://en.wikipedia.org/wiki/Mach-O), which is used in macOS. The magic bytes at the start of a Mach-O binary can vary, as highlighted in this blog: [https://redmaple.tech/blogs/macho-files/](https://redmaple.tech/blogs/macho-files/)
+
+In particular, something I saw when looking up these values is that `0xCAFEBABE` (used for Mach-O FAT binaries) is [also used](https://stackoverflow.com/questions/73546728/magic-value-collision-between-macho-fat-binaries-and-java-class-files) for Java `.class` files, meaning we might misclassify some files if just relying on this value! However, Apple has a hacky approach of getting around this based on Java versions: [https://opensource.apple.com/source/file/file-80.40.2/file/magic/Magdir/cafebabe.auto.html](https://opensource.apple.com/source/file/file-80.40.2/file/magic/Magdir/cafebabe.auto.html)
+
+In short, the the 16-bit value at offset `0x4` would tell us the Java version, the lowest value of which is apparently `0x30`. For Mach-0, the 32-bit value at offset `0x4` identifies the architecture, which according to the linked docs (which were written in 2018 so there may be later versions) only goes up to version 18. So, we could rely on the following to avoid trying to get false positives:
+```
+rule IsMacho {
+    condition:
+        uint32(0) == 0xfeedface or    // the mach magic number
+        uint32(0) == 0xcefaedfe or    // NXSwapInt(MH_MAGIC)
+        uint32(0) == 0xfeedfacf or    // the 64-bit mach magic number
+        uint32(0) == 0xcffaedfe or    // NXSwapInt(MH_MAGIC_64)
+        (
+            uint32(0) == 0xcafebabe and    // Mach-O FAT binaries
+            uint16(4) < 0x30               // Avoid Java classes
+        )
+}
+```
+
+I definitely want to learn more about macOS; I can highly recommend checking about Daniel Stinson's ([@shellcromancer](https://twitter.com/shellcromancer)) posts for #100DaysofYARA, as he has covered so far several different macOS malware families/heuristic rules: [https://github.com/shellcromancer/DaysOfYARA-2023/tree/main/shellcromancer](https://github.com/shellcromancer/DaysOfYARA-2023/tree/main/shellcromancer)
+
+# Day 68 - File classification: ISO files
+We've looked at some of the most common executable file formats so far, but there are so many more types of files out there that we may want to classify with YARA! One of the best resources I've seen to list a large variety of file signatures is the following: [https://www.garykessler.net/library/file_sigs.html](https://www.garykessler.net/library/file_sigs.html)
+
+For example, for optical disk images (ISO), which have been increasingly used by threat actors in recent times, has the following description from the above linked resource:
+```
+43 44 30 30 31 	  CD001
+ISO               ISO-9660 CD Disc Image
+This signature usually occurs at byte offset 32769 (0x8001), 34817 (0x8801), or 36865 (0x9001).
+```
+
+This gives us the exact information we need to write a condition to target ISO files. We can either do this using the `uint` functions:
+```
+rule IsISO {
+    condition:
+        (uint32be(0x8001) == 0x43443030 and uint8(0x8005) == 0x31) or
+        (uint32be(0x8801) == 0x43443030 and uint8(0x8805) == 0x31) or
+        (uint32be(0x9001) == 0x43443030 and uint8(0x9005) == 0x31)
+}
+```
+
+Or using strings:
+```
+rule IsISO {
+    strings:
+        $iso_sig = "CD001"
+        
+    condition:
+        $iso_sig at 0x8001 or
+        $iso_sig at 0x8801 or
+        $iso_sig at 0x9001
+}
+```
+
+# Day 69 - File classification: Strings vs. offsets - Part 1
+In the previous psot, I showed two different ways to classify ISO files; one using `uint` checks, and another using strings. Why would you pick one over the other?
+
+One way I see people write rules to check if a file is a PE is as follows:
+```
+rule IsPE {
+    strings:
+        $mz = "MZ"
+        // equally you could use $mz = {4d 5a}
+        
+    condition:
+        $mz at 0
+}
+```
+
+As a rule, this is fine. The atom `{4d 5a}` is not going to be flagged by YARA as "slowing down your scanning". And it follows the same logic that the `uint16(0) == 0x5A4D` check. In fact, when testing this in the current version of YARA, the simple condition of just `$mz at 0` means that YARA will stop trying to find other instances of `MZ` once it has found the first one!
+
+**EDIT:** As [Wesley Shields pointed out to me](https://twitter.com/wxs/status/1634156482043301890), there are some inaccuracies in the following section. I believe some of my testing was inaccurate due to a typo in one of my rules, and so I would not rely on the following description that has been struck through (I want to leave it in for reference).
+
+The following post will do some further tests to try and make some more sense of what is going on!
+
+~~A potential performance issue appears when you start to introduce other strings/parts of the condition. For instance, the following rule:~~
+```
+rule IsPE {
+    strings:
+        $mz = {4d 5a}
+        // equally you could use $mz = {4d 5a}
+        
+        $foobar = "foobar"
+        
+    condition:
+        $mz at 0 and any of them
+}
+```
+
+~~If you run this rule, and print out the matched strings, you will see that it will try to search for every instance of `MZ` unlike the other rule, even though we only care about whether it appears at offset `0`. This is not as good performance-wise; if you're scanning compressed/encrypted data, the chances of the bytes `{4d 5a}` appearing in many places increases! This means YARA will have to scan for the atom `{4d 5a}` everywhere, and record each location of its appearence (unless we specify YARA to run in fast mode with the `-f` flag that is).~~
+
+~~Alternatively, the check `uint16(0) == 0x5A4D` doesn't rely on strings, meaning we don't have to search for `MZ` everywhere to evaluate the condition. These bytes will either be at the start of the file where we have specified, or they won't, meaning the check is usually quicker.~~
+
+# Day 70 - File classification: Strings vs. offsets - Part 2
+In the previous post I attempted to discuss some of the potential tradeoffs of using strings vs. offsets. However, there were some inaccuracies in my approach (thank you to Wesley Shields for [pointing this out](https://twitter.com/wxs/status/1634156482043301890)). I still need to look at the source code of YARA more in detail to see how the YARA searching algorithm changes depending on how large the file, but for now let's do some further tests to see what potential differences there could be between strings and offsets.
+
+Let's consider the worst case scenario - large files of random data where the bytes `{4d 5a}` may occur often. To simulate this, I generated some random files of varying size:
+```
+import os
+
+with open("1kb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024))
+
+with open("200kb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 200))
+    
+with open("500kb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 500))
+    
+with open("1mb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024))
+    
+with open("200mb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024 * 200))
+    
+with open("500mb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024 * 500))
+    
+with open("1gb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024 * 1024))
+    
+with open("10gb.bin", "wb") as outfile:
+    outfile.write(os.urandom(1024 * 1024 * 1024 * 10))
+```
+
+And ran the following rules through [Panopticon](https://github.com/Neo23x0/panopticon):
+```
+rule Just_Str_MZ_At_0 {
+    strings:
+        $mz = "MZ"
+        
+    condition:
+        $mz at 0
+}
+
+rule Str_MZ_At_0_And_Extra_String {
+    strings:
+        $mz = "MZ"
+        
+        $foobar = "foobar"
+        
+    condition:
+        $mz at 0 and $foobar
+}
+
+rule Str_MZ_Anywhere {
+    strings:
+        $mz = "MZ"
+        
+    condition:
+        any of them
+}
+
+rule Just_Offset_MZ_At_0 {        
+    condition:
+        uint16(0) == 0x5A4D
+}
+
+rule Offset_MZ_At_0_And_Extra_String {  
+    strings:
+        $foobar = "foobar"
+      
+    condition:
+        uint16(0) == 0x5A4D and $foobar
+}
+```
+
+In general, I wanted to test different cases of checking if a file is a PE based on offset checks vs. strings. Unfortunately, I seem to be getting inconsistent results in terms of the performance. These are the results I got on my system when running them against the random files:
+```
+[INFO   ] Rule "Just_Str_MZ_At_0" is fast enough, not measuring any further due to fast mode, diff 7.2349 % below
+alerting level: 18.9697 %
+[INFO   ] Rule "Str_MZ_At_0_And_Extra_String" is fast enough, not measuring any further due to fast mode, diff -17.0396
+% below alerting level: 18.9697 %
+[INFO   ] Rule "Str_MZ_Anywhere" is fast enough, not measuring any further due to fast mode, diff -16.6793 % below
+alerting level: 18.9697 %
+[INFO   ] Rule "Just_Offset_MZ_At_0" is fast enough, not measuring any further due to fast mode, diff -48.4826 % below
+alerting level: 18.9697 %
+[INFO   ] Rule "Offset_MZ_At_0_And_Extra_String" is fast enough, not measuring any further due to fast mode, diff
+-50.0343 % below alerting level: 18.9697 %
+```
+
+And these are results from a second run of the same rules (in which I changed the order of the rules a bit):
+```
+[INFO   ] Rule "Just_Offset_MZ_At_0" is fast enough, not measuring any further due to fast mode, diff -51.9545 % below
+alerting level: 3.0000 %
+[INFO   ] Rule "Offset_MZ_At_0_And_Extra_String" is fast enough, not measuring any further due to fast mode, diff
+-50.7250 % below alerting level: 3.0000 %
+[INFO   ] Rule "Just_Str_MZ_At_0" is fast enough, not measuring any further due to fast mode, diff -25.8056 % below
+alerting level: 3.0000 %
+[INFO   ] Rule "Str_MZ_At_0_And_Extra_String" is fast enough, not measuring any further due to fast mode, diff -48.6145
+% below alerting level: 3.0000 %
+[INFO   ] Rule "Str_MZ_Anywhere" is fast enough, not measuring any further due to fast mode, diff -49.0124 % below
+alerting level: 3.0000 %
+```
+
+What can be seen in both sets of results is that all of the rules I've run here are fast, but that that the offset check rules are consistently fast, while the string checks are inconsistent (sometimes just as fast as the offset rules, sometimes not).
+
+While I would like to do more testing, I'm not sure that this is necessarily the right approach at this stage!
+
+Some caveats: bear in mind that:
+- These rules are being run against large random files, which is going to be the worst case scenario
+- Are doing very basic checks, whereas as other rules will have more strings/checks alongside them
+- When run on their own vs. a larger set of rules the performance will likely change
+
+## In conclusion
+I have a bias against `$mz at 0` rules, due to my belief that they did not perform as well. While there may be some edge cases where there are differences in performance, it does not appear that this is the case in general!
+
+In short, there's unlikely to be a practical difference in whether you use strings or offsets to check for specific conditions. It is your preference for how you want to write these rules.
+
+# Day 71 - File classification: OneNote files
+If you follow the latest threat vectors being used by threat actors in the wild, you may have seen that there has been an increase in OneNote files used in phishing campaigns: [https://www.proofpoint.com/uk/blog/threat-insight/onenote-documents-increasingly-used-to-deliver-malware](https://www.proofpoint.com/uk/blog/threat-insight/onenote-documents-increasingly-used-to-deliver-malware)
+
+With the changes made by Microsoft to [by default disable macros in documents downloaded from the internet](https://learn.microsoft.com/en-us/deployoffice/security/internet-macros-blocked), it can be expected that threat actors will continue to experiment with different file formats! Using OneNote in particular seemed to be quite effective at the start, as not all security tooling was necessarily prepared to handle the file format.
+
+So what can we do with YARA? As with many cases I've highlighted so far, the first thing we want to do is classify files as OneNote files. According to [this document](https://www.garykessler.net/library/file_sigs.html), they have the following signature at the start of a file:
+```
+E4 52 5C 7B 8C D8 A7 4D
+AE B1 53 78 D0 29 96 D3
+```
+
+While we could write a condition for the whole header, it should be sufficient to look at the first 4 bytes:
+```
+rule IsOneNote {
+    condition:
+        uint32be(0) == 0xE4525C7B
+}
+```
+
+# Day 72 - File classification: OneNote Case Study - Embedded Files - Part 1
+So now that we can classify OneNote files, what kind of heuristics can we perform? Let's use the official file specification as a reference: [https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf](https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf)
+
+The general approach threat actors have been taking so far is to embed files within OneNote documents (such as PowerShell, HTA, PE, etc.), which when double clicked on within the notebook will be executed. If you go to the section `2.1.12 Properties` of the file specification, you will see that many of the structures of OneNote have `PropertyID` values associated with them. In particular, I could see the following:
+```
+EmbeddedFileContainer    0x20001D9B
+```
+
+Even though we don't currently have a YARA module to parse OneNote files, using this information we can write the following heuristic rule:
+```
+rule Heuristic_OneNote_Notebook_with_Embedded_File {
+    meta:
+        description = "Detects OneNote notebooks with an embedded file"
+        reference = "https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf"
+        
+    strings:
+        $embedded_file_container_property_id = {9B 1D 00 20}
+        
+    condition:
+        uint32be(0) == 0xE4525C7B and any of them
+}
+```
+
+While this rule will almost certainly pick up a legitimate OneNote files (embedding files is a feature of OneNote after all that will have some legitimate use), it is a starting point to apply more heuristics to search for suspicious OneNote files.
+
+# Day 73 - File classification: OneNote Case Study - Embedded Files - Part 2
+So how can we add heuristics to the rule in the previous post? From what I've seen, for it to be possible to execute files embedded within OneNote files, they need a valid file extension.
+
+In the [OneNote file specification](https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf), the following `PropertyID` is listed:
+```
+EmbeddedFileName    0x1C001D9C
+```
+
+In particular, a `jcidEmbeddedFileNode` structure in a OneNote file may contain both a `EmbeddedFileContainer` and `EmbeddedFileName` structure. So a further heuristic could be to look for embedded files which we know have filenames listed:
+```
+rule Heuristic_OneNote_Notebook_with_Embedded_File_with_Filename {
+    meta:
+        reference = "https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf"
+
+    strings:
+        $embedded_file_container = {9B 1D 00 20}
+        $embedded_file_name = {9C 1D 00 1C}
+
+    condition:
+        uint32be(0) == 0xE4525C7B and 
+        $embedded_file_container and
+        for any i in (1 .. #embedded_file_container) : (
+            $embedded_file_name in (@embedded_file_container[i] .. @embedded_file_container[i] + 0x30)
+        )
+}
+```
+
+This rule extends the previous post's rule by adding a for loop which iterates over each instance of `$embedded_file_container`, and looks to see if a `$embedded_file_name` string lies within the first `0x30` bytes of an occurance of any of them.
+
+# Day 74 - File classification: OneNote Case Study - Embedded Files - Part 3
+To turn these heuristics into useful rules, let's consider what we want to look for in the filenames of embedded files.
+
+We want to look for any occurances of "executable" files (that is, files that will be run in some format when double clicked). There are some obvious choices, such as `.exe` files, but there are also scripts such as `.bat`, or shortcut `.lnk` files. 
+
+As it turns out, there are quite a lot of valid executable extensions! I've not seen a complete list yet (please let me know if you have one), but here are some references that contain some good lists:
+- [https://help.proofpoint.com/Proofpoint_Essentials/Email_Security/Administrator_Topics/090_filtersandsenderlists/Essentials_Filters%3A_File_extensions](https://help.proofpoint.com/Proofpoint_Essentials/Email_Security/Administrator_Topics/090_filtersandsenderlists/Essentials_Filters%3A_File_extensions)
+- [https://community.spiceworks.com/topic/2107142-what-are-all-of-the-file-types-on-a-windows-pc-that-contain-executable-code](https://community.spiceworks.com/topic/2107142-what-are-all-of-the-file-types-on-a-windows-pc-that-contain-executable-code)
+
+By picking out some of the most relevant extensions, we can complete our heuristic rule as follows:
+```
+rule Heuristic_OneNote_Notebook_with_Embedded_Executable_File {
+    meta:
+        description = "Detects OneNote notebooks with suspicious embedded executable files"
+        reference = "https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf"
+
+    strings:
+        $embedded_file_container = {9B 1D 00 20}
+        $embedded_file_name = {9C 1D 00 1C}
+        
+        $ext1 = ".ade" ascii wide nocase
+        $ext2 = ".adp" ascii wide nocase
+        $ext3 = ".ai" ascii wide nocase
+        $ext4 = ".bat" ascii wide nocase
+        $ext5 = ".chm" ascii wide nocase
+        $ext6 = ".cmd" ascii wide nocase
+        $ext7 = ".com" ascii wide nocase
+        $ext8 = ".cpl" ascii wide nocase
+        $ext9 = ".dll" ascii wide nocase
+        $ext10 = ".exe" ascii wide nocase
+        $ext11 = ".hlp" ascii wide nocase
+        $ext12 = ".hta" ascii wide nocase
+        $ext13 = ".inf" ascii wide nocase
+        $ext14 = ".ins" ascii wide nocase
+        $ext15 = ".isp" ascii wide nocase
+        $ext16 = ".jar" ascii wide nocase
+        $ext17 = ".js" ascii wide nocase
+        $ext18 = ".jse" ascii wide nocase
+        $ext19 = ".lib" ascii wide nocase
+        $ext20 = ".lnk" ascii wide nocase
+        $ext21 = ".mde" ascii wide nocase
+        $ext22 = ".msc" ascii wide nocase
+        $ext23 = ".msi" ascii wide nocase
+        $ext24 = ".msp" ascii wide nocase
+        $ext25 = ".mst" ascii wide nocase
+        $ext26 = ".nsh" ascii wide nocase
+        $ext27 = ".pif" ascii wide nocase
+        $ext28 = ".ps" ascii wide nocase
+        $ext29 = ".ps1" ascii wide nocase
+        $ext30 = ".reg" ascii wide nocase
+        $ext31 = ".scr" ascii wide nocase
+        $ext32 = ".sct" ascii wide nocase
+        $ext33 = ".shb" ascii wide nocase
+        $ext34 = ".shs" ascii wide nocase
+        $ext35 = ".sys" ascii wide nocase
+        $ext36 = ".vb" ascii wide nocase
+        $ext37 = ".vbe" ascii wide nocase
+        $ext38 = ".vbs" ascii wide nocase
+        $ext39 = ".vxd" ascii wide nocase
+        $ext40 = ".wsc" ascii wide nocase
+        $ext41 = ".wsf" ascii wide nocase
+        $ext42 = ".wsh" ascii wide nocase
+
+    condition:
+        uint32be(0) == 0xE4525C7B and 
+        $embedded_file_container and
+        for any i in (1 .. #embedded_file_container) : (
+            $embedded_file_name in (@embedded_file_container[i] .. @embedded_file_container[i] + 0x30) and
+            any of ($ext*) in (@embedded_file_container[i] .. @embedded_file_container[i] + 0x100)
+        )
+}
+```
+
+Extending the previous post's rule futher, we are now also looking for embedded filenames with a list of known extensions. 
+
+From the samples I was looking at, the filenames were UTF-16, meaning that we have to apply the `wide` modifier. I include the `ascii` modifier just in case as well. I also apply `nocase`, as threat actors could change the casing in order to evade detection.
+
+From my tests, this appears to pick up a lot of malicious OneNote files! I will add it to the 100 Days of YARA GitHub repo, so please feel free to use it: [https://github.com/100DaysofYARA/2023/tree/main/bitsofbinary](https://github.com/100DaysofYARA/2023/tree/main/bitsofbinary)
+
+# Day 75 - File classification: OneNote Case Study - Embedded Files - Part 4
+Let's do a critique the rule from the previous post. Reviewing your own rules is always a good opportunity to learn how to improve.
+
+### Redundant string check?
+The `$embedded_file_container and` line in the rule is actually redundant, as the line `for any i in (1 .. #embedded_file_container) : (` won't evaluate if there are no occurances of `$embedded_file_container`! So we could cut that line.
+
+### Unnecessary embedded filename check?
+Is the `$embedded_file_name in ...` check really needed? On one hand, we may want to check if there is actually a filename to check at all; but on the other, it could be worthwhile just doing the file extensions check anyway. I think we could safely cut this line and the rule would function the same.
+
+### Is the range check for file extensions good enough?
+The `any of ($ext*) in ...` line checks the first `0x100` bytes after an occurance of `$embedded_file_container`. Given that we're doing some pretty rough parsing of a OneNote file, is this good enough? Or should we build in more slack? If so, what range should we check instead?
+
+### Is the for loop necessary at all?
+Arguably, do we even need the for loop? Could we not just check for OneNote files that have those file extensions in them via strings section? I think there is a good case to be made for doing either; the rule in its current format I think is less FP-prone (i.e. it is less likely to hit on samples that have text containing those file extensions), but if my condition isn't loose enough then perhaps I'm missing malicious samples?
+
+### Too many file modifiers?
+Each string has `ascii wide nocase` applied to it. This will create quite a lot of atoms to check for, as each casing variation of both the `ascii` and `wide` string variants will need to be computed. However, given that these strings are relatively short, I think that the performance could be a lot worse, and I'd personally be happy including this in my ruleset.
+
+## Alternative rule
+Based on the above, a variation of the rule from the previous post could look like this:
+```
+rule Heuristic_OneNote_Notebook_with_Embedded_Executable_File {
+    meta:
+        description = "Detects OneNote notebooks with suspicious embedded executable files"
+        reference = "https://interoperability.blob.core.windows.net/files/MS-ONE/%5bMS-ONE%5d.pdf"
+
+    strings:
+        $embedded_file_container = {9B 1D 00 20}
+        
+        $ext1 = ".ade" ascii wide nocase
+        $ext2 = ".adp" ascii wide nocase
+        $ext3 = ".ai" ascii wide nocase
+        $ext4 = ".bat" ascii wide nocase
+        $ext5 = ".chm" ascii wide nocase
+        $ext6 = ".cmd" ascii wide nocase
+        $ext7 = ".com" ascii wide nocase
+        $ext8 = ".cpl" ascii wide nocase
+        $ext9 = ".dll" ascii wide nocase
+        $ext10 = ".exe" ascii wide nocase
+        $ext11 = ".hlp" ascii wide nocase
+        $ext12 = ".hta" ascii wide nocase
+        $ext13 = ".inf" ascii wide nocase
+        $ext14 = ".ins" ascii wide nocase
+        $ext15 = ".isp" ascii wide nocase
+        $ext16 = ".jar" ascii wide nocase
+        $ext17 = ".js" ascii wide nocase
+        $ext18 = ".jse" ascii wide nocase
+        $ext19 = ".lib" ascii wide nocase
+        $ext20 = ".lnk" ascii wide nocase
+        $ext21 = ".mde" ascii wide nocase
+        $ext22 = ".msc" ascii wide nocase
+        $ext23 = ".msi" ascii wide nocase
+        $ext24 = ".msp" ascii wide nocase
+        $ext25 = ".mst" ascii wide nocase
+        $ext26 = ".nsh" ascii wide nocase
+        $ext27 = ".pif" ascii wide nocase
+        $ext28 = ".ps" ascii wide nocase
+        $ext29 = ".ps1" ascii wide nocase
+        $ext30 = ".reg" ascii wide nocase
+        $ext31 = ".scr" ascii wide nocase
+        $ext32 = ".sct" ascii wide nocase
+        $ext33 = ".shb" ascii wide nocase
+        $ext34 = ".shs" ascii wide nocase
+        $ext35 = ".sys" ascii wide nocase
+        $ext36 = ".vb" ascii wide nocase
+        $ext37 = ".vbe" ascii wide nocase
+        $ext38 = ".vbs" ascii wide nocase
+        $ext39 = ".vxd" ascii wide nocase
+        $ext40 = ".wsc" ascii wide nocase
+        $ext41 = ".wsf" ascii wide nocase
+        $ext42 = ".wsh" ascii wide nocase
+
+    condition:
+        uint32be(0) == 0xE4525C7B and 
+        for any i in (1 .. #embedded_file_container) : (
+            any of ($ext*) in (@embedded_file_container[i] .. @embedded_file_container[i] + 0x200)
+        )
+}
+```
+
+I.e. we lose the `$embedded_file_name` checks, and increase the range check; but we still keep the for loop looking over `$embedded_file_container` instances.
+
+Hopefully this self critique shows that while there are usually "objective" ways of improving rules, there are also many "subjective" opinions that can be applied! How would you change this rule, for example?
+
+# Day 76 - Greg's Challenge: Introduction
+Greg Lesnewich ([@greglesnewich](https://twitter.com/greglesnewich)) put out a challenge to write some YARA rules for a collection of samples: [https://twitter.com/greglesnewich/status/1630615467776786458](https://twitter.com/greglesnewich/status/1630615467776786458)
+
+As I had seen that other's had picked [Hikit](https://twitter.com/Qutluch/status/1631078278231359490) and [Reductor](https://twitter.com/dan__mayer/status/1631739132551782400), I've decided to go for AcidBox.
+
+Palo Alto's Unit42 released a great blog on this malware family in 2020, which is nicely laid out, and shows a variety of samples as part of the framework: [https://unit42.paloaltonetworks.com/acidbox-rare-malware/](https://unit42.paloaltonetworks.com/acidbox-rare-malware/)
+
+Over the next set of posts, I will dive into how I've written some rules for this malware family!
+
+## Rule writing philosophy
+Before I start writing some rules however, I think its worth discussing my general ideal approach/"philosophy" I have when writing rules for malware, which follow three ideas:
+- Accessibility - make you rules as easy to understand and read as possible, and provide as much context as you can
+- Simplicity - this doesn't mean the logic of the rule needs to be simple, but as complexity increases consider breaking out ideas into smaller rules to keep the main idea of the rule simple
+- Redundancy - write rules for multiple facets of the malware you're trying to signature to have more of a chance of continuing to track it
+
+I believe these three ideas combined can lead to rules being very context rich, clear, and effective. As such, I will be writing small, but clear rules over the next few posts.
+
+# Day 77 - Aside - Facets to Signature
+When we write YARA rules, there are several different categories/facets that we can focus on. In roughly increasing order of complexity, I think these can fall into the following categories:
+- Strings - plaintext (or encoded) strings seen within a sample
+- Meta features - metadata associated with the file itself (such as headers or artefacts left in compiled samples)
+- Code - signaturing the code of the sample itself (whether compiled, or the plaintext code that will be interpreted later on)
+- Techniques - abstracting away from any of the previous facets to focus on having a signature for a technique being used
+
+It may not always be possible to write rules for a sample covering all of these features; a packed sample may not have any plaintext strings to work with, or a webshell may not have enough unique code to make a reliable rule. However, if you can cover a variety of these categories, you're already building in redundancy into your rules to cover a malware family, especially if you can cover a technique well.
+
+The tools you use to analyse these facets can vary a lot depending on the sample! Sometimes you can get away with just a text editor if you're looking at scripting languages like PowerShell, VBScript, or JavaScript. But for compiled languages, you may have to use more specific tooling.
+
+While there are many commercial options available, you can use a mixture of the following free tools to do the analysis needed for writing rules:
+- [strings2](https://github.com/glmcdona/strings2) - extracts plaintext ASCII and unicode strings (alternatives like [FLOSS](https://github.com/mandiant/flare-floss) are great for dumping out encoded strings, but I like to see what I have to work with in plaintext first)
+- [Detect It Easy](https://github.com/horsicq/Detect-It-Easy) - determines file types, and shows meta features of them
+- [Ghidra](https://github.com/NationalSecurityAgency/ghidra) - a reverse engineering framework for a variety of processor types
+- [HxD](https://mh-nexus.de/en/hxd/) - a great, free hex editor for copying/editing the hex representations of files
+
+# Day 78 - AcidBox - SSP DLL Strings - Format Strings Part 1
+In Palo Alto Unit42's [blog on AcidBox](https://unit42.paloaltonetworks.com/acidbox-rare-malware/), it breaks down the malware framework into roughly three components:
+- A main worker DLL
+- Security Support Provider (SSP) DLLs to load the main worker
+- A kernel mode payload embedded in the main worker
+
+I will start by looking at the SSP DLLs; in particular looking at [003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9](https://samples.vx-underground.org/APTs/2020/2020.06.17/Samples/). As highlighted in the previous post, I'll start by looking at plaintext strings to see if there is anything obvious to base a YARA rule on.
+
+At a first glance, there doesn't appear to much to work with! There are some representing the exported functions (we'll get to those later), some representing imported functions, and version information (which we'll also get to later).
+
+However, near the start of the file (more specifically near the beginning of the `.text` section), there are some format strings of interest:
+```
+%s\%s
+%s\%s{% raw %}{%s}{% endraw %}
+s\{% raw %}{%s}{% endraw %}
+```
+
+All of these strings in combination may be good enough for a first rule as follows:
+```
+rule AcidBox_SSP_DLL_Loader_Format_Strings {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a combination of format strings"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        $ = "%s\\%s"
+        $ = "%s\\%s{% raw %}{%s}{% endraw %}"
+        $ = "s\\{% raw %}{%s}{% endraw %}"
+        
+    condition:
+        all of them
+}
+```
+
+# Day 79 - AcidBox - SSP DLL Strings - Format Strings Part 2
+An alternative way to search for the format strings in AcidBox would be to look for them all in one chunk. Each string is sequential to the other, separated by null bytes to make sure they're aligned in 8-byte segments. So that rule would look like this:
+```
+rule AcidBox_SSP_DLL_Loader_Format_String_Chunk {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique string chunk of format strings"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        // %s\%s
+        // %s\%s{% raw %}{%s}{% endraw %}
+        // s\{% raw %}{%s}{% endraw %}
+        $ = {25 73 5C 25 73 00 00 00 00 00 00 00 25 73 5C 25 73 7B 25 73 7D 00 00 00 00 00 00 00 25 73 5C 7B 25 73 7D 00}
+        
+    condition:
+        any of them
+}
+```
+
+While this rule is stricter than the previous one, it guarantees to only hit on samples that have these format strings in order like this, making it potentially less FP-prone, at the risk of missing samples that have these format strings more spread out/out of order, etc.
+
+# Day 80 - AcidBox - SSP DLL Strings - Format Strings Part 3
+Using the fact that that the AcidBox format strings all appear to be aligned by the same amount of bytes, we can create a further rule that is slightly more loose in that it doesn't require all three format strings to be present. We can do this by listing out the different orders each format string could appear next to one another, to make the following rule:
+```
+rule AcidBox_SSP_DLL_Loader_Format_String_Combos {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on combinations of format strings seen in samples"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        // Combinations of the following (with alignment bytes):
+        // %s\%s
+        // %s\%s{% raw %}{%s}{% endraw %}
+        // s\{% raw %}{%s}{% endraw %}
+        $ = {25 73 5C 25 73 00 00 00 00 00 00 00 25 73 5C 25 73 7B 25 73 7D 00}
+        $ = {25 73 5C 25 73 00 00 00 00 00 00 00 25 73 5C 7B 25 73 7D 00}
+        $ = {25 73 5C 25 73 7B 25 73 7D 00 00 00 00 00 00 00 25 73 5C 25 73 00}
+        $ = {25 73 5C 25 73 7B 25 73 7D 00 00 00 00 00 00 00 25 73 5C 7B 25 73 7D 00}
+        $ = {25 73 5C 7B 25 73 7D 00 00 00 00 00 00 00 25 73 5C 25 73 00}
+        $ = {25 73 5C 7B 25 73 7D 00 00 00 00 00 00 00 25 73 5C 25 73 7B 25 73 7D 00}
+        
+    condition:
+        any of them
+}
+```
+
+# Day 81 - AcidBox - SSP DLL Strings - Format Strings Part 4
+Finally for these format strings in AcidBox, if we wanted to hunt for more samples, we could attempt to loosen the rule further by adding in variable ranges into the hex strings (in case the number of alignment bytes changes):
+```
+rule AcidBox_SSP_DLL_Loader_Format_String_Combos_Loose {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on combinations of format strings seen in samples. This rule uses a looser set of strings, so may be more false positive-prone."
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        // Combinations of the following (with alignment bytes):
+        // %s\%s
+        // %s\%s{% raw %}{%s}{% endraw %}
+        // s\{% raw %}{%s}{% endraw %}
+        $ = {25 73 5C 25 73 00 [0-16] 25 73 5C 25 73 7B 25 73 7D 00}
+        $ = {25 73 5C 25 73 00 [0-16] 25 73 5C 7B 25 73 7D 00}
+        $ = {25 73 5C 25 73 7B 25 73 7D 00 [0-16] 25 73 5C 25 73 00}
+        $ = {25 73 5C 25 73 7B 25 73 7D 00 [0-16] 25 73 5C 7B 25 73 7D 00}
+        $ = {25 73 5C 7B 25 73 7D 00 [0-16] 25 73 5C 25 73 00}
+        $ = {25 73 5C 7B 25 73 7D 00 [0-16] 25 73 5C 25 73 7B 25 73 7D 00}
+        
+    condition:
+        any of them
+}
+```
+
+This version of the rule appears to yield some false positives vs. the previous rules, so may only be useful from a threat hunting perspective, with some possible extra heuristics applied (such as a `filesize` modifier).
+
+I hope these first set of rules shows that even if there are no individual strings in samples that can used on their own for classification, by understanding ways you can combine them together in a condition you can still use a collection of them. In general, if I see strings that on there own yield FPs, but in chunked combination classify malicious samples, I try to use them as often as possible!
+
+I also hope that this approach shows that we're already building a bit of redundancy into our rules. We've written different versions of the same rule multiple times, but each has a slightly different aim that we're being specific about in our rulename/description. If all four of the rules we've written hit on a sample, then that already gives us a different level of confidence about the sample vs. if only one rule hits on it.
+
+# Day 82 - AcidBox - SSP DLL PE Meta Features - Part 1
+We're done with strings for now, so let's move on to some of the meta features of the sample. Specifically, what PE metadata can we see?
+
+One that I always start with is both the import hash and rich header hash, as it is quick and easy to put these in rules:
+```
+import "pe"
+import "hash"
+
+rule AcidBox_SSP_DLL_Loader_Imphash {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique import hash"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+
+    condition:
+        pe.imphash() == "30851d4a2b31e9699084a06e765e21b0"
+}
+
+import "pe"
+import "hash"
+
+rule AcidBox_SSP_DLL_Loader_Rich_Header_Hash {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique rich header hash"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+
+    condition:
+        hash.md5(pe.rich_signature.clear_data) == "269af2751efee65b1ab00622816c83e6"
+}
+```
+
+I've got a script that automatically can pull out these values and put them in a rule: [https://github.com/BitsOfBinary/yarabuilder-examples/tree/main/pe](https://github.com/BitsOfBinary/yarabuilder-examples/tree/main/pe)
+
+# Day 83 - AcidBox - SSP DLL PE Meta Features - Part 2
+Many PE files will have a `VERSIONINFO` resource: [https://learn.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource](https://learn.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource)
+
+As described, this resource contains information such as the intended operating system, and original name of the file. This resource is also parsed by the PE module: [https://yara.readthedocs.io/en/stable/modules/pe.html#c.version_info](https://yara.readthedocs.io/en/stable/modules/pe.html#c.version_info)
+
+For the sample of AcidBox we've been looking at, it has an internal name of `windigest.dll`, and a file description of `Windows Digest Access`. Both these values appear to be unique, and can be the basis for a YARA rule:
+```
+import "pe"
+
+rule AcidBox_SSP_DLL_Loader_windigest_Version_Info {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique version information of 'windigest' and a description"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    condition:
+        pe.version_info["InternalName"] == "windigest.dll" or
+        pe.version_info["FileDescription"] == "Windows Digest Access"
+}
+```
+
+# Day 84 - AcidBox - SSP DLL PE Meta Features - Part 3
+While on the topic of version info, the [Palo Alto blog for AcidBox](https://unit42.paloaltonetworks.com/acidbox-rare-malware/) mentions that the following filenames (which are similar to known Windows binaries) were used:
+- `msv1_1.dll`
+- `pku.dll`
+- `windigest.dll`
+
+We've covered `windigest.dll` in our previous post, and we can write rules for the two remaining filenames, even if we don't have any samples to work with:
+```
+import "pe"
+
+rule AcidBox_SSP_DLL_Loader_msv1_1_Version_Info {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique version information of 'msv1_1.dll'"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        
+    condition:
+        pe.version_info["InternalName"] == "msv1_1.dll"
+}
+
+import "pe"
+
+rule AcidBox_SSP_DLL_Loader_pku_Version_Info {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique version information of 'pku.dll'"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        
+    condition:
+        pe.version_info["InternalName"] == "pku.dll"
+}
+```
+
+It is worth looking for opportunities to write YARA rules for indicators of compromise mentioned in open source research, even if a sample isn't available.
+
+# Day 85 - AcidBox - SSP DLL PE Meta Features - Part 4
+The AcidBox loaders have four exported functions:
+- `InitPhysicalInterfaceA`
+- `InitSecurityInterfaceA`
+- `SpLsaModeInitialize`
+- `UpdateSecurityContext`
+
+While the middle two exports appear to be named after standard Windows API functions (e.g. [InitSecurityInterfaceA](https://learn.microsoft.com/en-us/windows/win32/api/sspi/nf-sspi-initsecurityinterfacea) and [SpLsaModeInitialize](https://learn.microsoft.com/en-us/windows/win32/api/ntsecpkg/nc-ntsecpkg-splsamodeinitializefn)), the first and last exports appear to be unique. So we can look for DLLs that export those in our rules:
+```
+import "pe"
+
+rule AcidBox_SSP_DLL_Loader_Unique_Exports {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on having unique exported functions"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    condition:
+        pe.exports("InitPhysicalInterfaceA") or
+        pe.exports("UpdateSecurityContext")
+}
+```
+
+While we can use the PE module for this purpose, it also makes sense to search for the strings too, in case they are embedded in another file, being called elsewhere, etc.
+```
+rule AcidBox_SSP_DLL_Loader_Unique_Exports_Strings {
+    meta:
+        description = "Detects the strings of unique exported functions of AcidBox SSP DLL loaders"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        $ = "InitPhysicalInterfaceA"
+        $ = "UpdateSecurityContext"
+        
+    condition:
+        any of them
+}
+```
+
+# Day 86 - AcidBox - SSP DLL Strings - PE Meta Features Part 5
+I think it's worth pointing out successful rule attempts, as well as failures. I wanted to see if I could write a rule based on the following information from the [Palo Alto blog](https://unit42.paloaltonetworks.com/acidbox-rare-malware/):
+> All of the AcidBox samples contain gaps between the single exported function entries...
+> 
+> Every AcidBox sample has a NumberOfFunctions value in the export directory that is bigger than the NumberOfNames value. This isn’t something unusual, as not every exported function has to have a name too. Unnamed functions can be also called by their ordinal values. What is uncommon, however, is that the function entries which are unnamed are also zeroed out, thus not used.
+
+By looking at the information from the PE module, the following export details are parsed out:
+```
+export_details
+	[0]
+		offset = 28244
+		name = "InitSecurityInterfaceA"
+		forward_name = YR_UNDEFINED
+		ordinal = 1
+	[1]
+		offset = 0
+		name = YR_UNDEFINED
+		forward_name = YR_UNDEFINED
+		ordinal = 2
+	[2]
+		offset = 0
+		name = YR_UNDEFINED
+		forward_name = YR_UNDEFINED
+		ordinal = 3
+	[3]
+		offset = 0
+		name = YR_UNDEFINED
+		forward_name = YR_UNDEFINED
+		ordinal = 4
+	[4]
+		offset = 27964
+		name = "InitPhysicalInterfaceA"
+		forward_name = YR_UNDEFINED
+		ordinal = 5
+	[5]
+		offset = 0
+		name = YR_UNDEFINED
+		forward_name = YR_UNDEFINED
+		ordinal = 6
+	[6]
+		offset = 28408
+		name = "UpdateSecurityContext"
+		forward_name = YR_UNDEFINED
+		ordinal = 7
+	[7]
+		offset = 0
+		name = YR_UNDEFINED
+		forward_name = YR_UNDEFINED
+		ordinal = 8
+	[8]
+		offset = 28168
+		name = "SpLsaModeInitialize"
+		forward_name = YR_UNDEFINED
+		ordinal = 9
+```
+
+In many cases, the export `name` member is `YR_UNDEFINED`, which we can check using the `defined` keyword. These exports also seem to have their export set to `0`; I'm not sure if this is a default for the pe module or not. As such I wrote the following rule looking for DLL with multiple, low ordinal exports with no name:
+```
+import "pe"
+
+rule Heuristic_Multiple_Undefined_Low_Ordinal_Exported_Functions {
+    meta:
+        description = "Detects DLLs with at least 2 different exported functions that are undefined, and which have low ordinals"
+        note = "This returns a lot of results, do not use for threat hunting without extra heuristics"
+        
+    condition:
+        for 2 export in pe.export_details : (
+            export.offset == 0 and
+            not defined export.name and
+            export.ordinal <= 10
+        )
+}
+```
+
+Unfortunately, as Palo Alto points out, this is not uncommon! Turns out a lot of DLLs have empty exports, meaning you can't rely on this alone. Still, the rule might be useful with some extra heuristics/context applied, but I wouldn't recommend using it in general.
+
+# Day 87 - AcidBox - SSP DLL Code - Signaturing Crypto Routine - Part 1
+We've written some rules for strings and meta features of the AcidBox SSP DLL. So let's move on to code. Unfortunately, I think this starts to create a barrier to entry from a detection perspective, as a little bit of reverse engineering knowledge is usually required to make a start on this. However, I hope I can highlight some features that are worth looking at from a YARA perspective!
+
+To analyse `003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9` I'm using [Ghidra](https://github.com/NationalSecurityAgency/ghidra), which is free and open source.
+
+So where should we start looking? Something I usually look for is custom cryptography routines, which can sometimes be useful for clustering samples together. `FUN_180007fc8` appears to be loading a PE resource (which matches with what is described in the [AcidBox blog](https://unit42.paloaltonetworks.com/acidbox-rare-malware/)). So by looking around, I can see that `FUN_180013a14` appears to be some kind of cryptography routine (likely RSA, but we don't necessarily need to know that for now) based on the fact that it has a for loop which contains an XOR.
+
+![](/assets/2023-03-28_crypto_routine.PNG)
+
+Looking at the highlighted disassembly/decompiler view, I can see that there are some "nice" instructions to work with; that is, there are no fixed offsets (e.g. referencing string positions that may change throughout the samples), and the combination of registers/instructions used looks pretty unique! As such, I can use Ghidra's `Copy Special...` option to copy out the `Byte String` of this code, and put it straight into a YARA rule.
+```
+rule AcidBox_SSP_DLL_Loader_Crypto_Routine_A {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique cryptography routine"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        // 180013a71 0f  b6  04  32   MOVZX      EAX ,byte ptr [param_2  + RSI *0x1 ]
+        // 180013a75 33  c8           XOR        param_1 ,EAX
+        // 180013a77 88  0c  3a       MOV        byte ptr [param_2  + RDI *0x1 ],param_1
+        // 180013a7a 41  ff  c0       INC        param_3
+        // 180013a7d 44  89  44       MOV        dword ptr [RSP  + local_14 ],param_3
+        //           24  04
+        $ = {0f b6 04 32 33 c8 88 0c 3a 41 ff c0 44 89 44 24 04}
+        
+    condition:
+        any of them
+}
+```
+
+Note: I always find it useful to copy the code we've signatured into the rule itself as a comment. That way, anyone reading it can see what the bytes represent, rather than having to go disassemble them themselves.
+
+# Day 88 - AcidBox - SSP DLL Code - Signaturing Crypto Routine - Part 2
+In the previous post's example, I copied the code straight from the binary itself to the YARA rule. While, if done correctly, this is usually sufficient to write rules with, there may be some edits we can make to the copied code to make it possible to try and find even more related samples.
+
+In particular, we are able to add wildcard operators to hex strings using `?` characters, which we could use to mask bytes that may change between samples. This could be used for masking stack offsets that may change, changing the type of register used, or fully masking addresses that will likely change across variants.
+
+While we could open the x86 manual and do this ourselves (which I still recommend trying at least once!), we can actually take advantage of a default Ghidra plugin to help us with this! That is, [YaraGhidraGUIScript.java](https://github.com/NationalSecurityAgency/ghidra/blob/master/Ghidra/Features/Base/ghidra_scripts/YaraGhidraGUIScript.java) can come in very handy. If I select a block of code, and execute this plugin, we can see the following output:
+![](/assets/2023-03-29_ghidra_yara_output.png)
+
+As you can see from the default output, some instructions have already been masked, changing some default registers. So already, we have a slightly looser rule we can use:
+```
+rule AcidBox_SSP_DLL_Loader_Crypto_Routine_B {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique cryptography routine"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        // 180013a71 0f  b6  04  32   MOVZX      EAX ,byte ptr [param_2  + RSI *0x1 ]
+        // 180013a75 33  c8           XOR        param_1 ,EAX
+        // 180013a77 88  0c  3a       MOV        byte ptr [param_2  + RDI *0x1 ],param_1
+        // 180013a7a 41  ff  c0       INC        param_3
+        // 180013a7d 44  89  44       MOV        dword ptr [RSP  + local_14 ],param_3
+        //           24  04
+        $ = {0f b6 04 32 33 c8 88 0c 3a 4? ff c0 4? 89 44 ?4 04}
+        
+    condition:
+        any of them
+}
+```
+
+We'll discuss in the next post a bit more about this Ghidra script + masking code.
+
+# Day 89 - AcidBox - SSP DLL Code - Signaturing Crypto Routine - Part 3
+Let's take a look at the [YaraGhidraGUIScript.java](https://github.com/NationalSecurityAgency/ghidra/blob/master/Ghidra/Features/Base/ghidra_scripts/YaraGhidraGUIScript.java) window again:
+![](/assets/2023-03-29_ghidra_yara_output.png)
+
+Each instruction, along with its operands can be toggled to be masked. So for instance, if I decided that I didn't think the register `R8D` would be consistent across variants, I could toggle that value by clicking on the relevant boxes containing that register.
+
+There are also options in the top of the window, which allow you to:
+- Mask all non-instructions (data)
+- Mask all operands
+- Mask all scalars
+- Mask all addresses
+
+It's worth playing around with these to see what the corresponding output would look like. For instance, I personally wouldn't want to mask all operands in this case, although in larger blocks of code that may be useful. But masking all addresses may be useful here, which will mask the operand `dword ptr [RSP + 0x4]`. Here is an example of some of the instructions I have masked:
+![](/assets/2023-03-30_ghidra_yara_output_masked.png)
+
+If I cut out the last 3 wildcards (as they are no longer really needed), I can get the following rule:
+```
+rule AcidBox_SSP_DLL_Loader_Crypto_Routine_C {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on a unique cryptography routine"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        // 180013a71 0f  b6  04  32   MOVZX      EAX ,byte ptr [param_2  + RSI *0x1 ]
+        // 180013a75 33  c8           XOR        param_1 ,EAX
+        // 180013a77 88  0c  3a       MOV        byte ptr [param_2  + RDI *0x1 ],param_1
+        // 180013a7a 41  ff  c0       INC        param_3
+        // 180013a7d 44  89  44       MOV        dword ptr [RSP  + local_14 ],param_3
+        //           24  04
+        $ = {0f b6 04 32 33 c8 88 0c 3a 4? ff c? 4? 89}
+        
+    condition:
+        any of them
+}
+```
+
+Overall, it is worth playing around with instruction masking to see how far you can go before you start getting false positives. The more you want to reverse engineer the sample, the more context you will get to help you decide what you can/can't mask (e.g. in this case, most of the code is dealing with function parameters, which have been saved into specific registers, so the masking might not actually make that much of a difference).
+
+# Day 90 - AcidBox - SSP DLL Code - Error Return Codes - Part 1
+Something I noticed when looking through the AcidBox code was that a lot of functions would return 4-byte codes when it appeared that functions had errors. For example, in the screenshot below, you can see highlighted one of these error codes which will be returned if the call to `OpenMutexA` fails:
+![](/assets/2023-03-31_acidbox_ssp_ghidra_unique_return_codes.PNG)
+
+This got me thinking that these values may be of interest from a detection perspective. But the first challenge is, how do we collect them all?
+
+I could go through each function individually and copy them out, but that would take a while. So intead, I wrote the following Ghidra script:
+```python
+max_steps = 100000
+counter = 0
+
+ins = getFirstInstruction()
+last_ins = getLastInstruction()
+
+while counter < max_steps and ins != last_ins:
+    mne_str = ins.getMnemonicString()
+    
+    if mne_str == "MOV":
+        num_ops = ins.getNumOperands()
+        
+        if num_ops == 2:
+            reg = ins.getDefaultOperandRepresentation(0)
+            
+            if reg == "EAX" or reg == "EBX":
+                val = ins.getDefaultOperandRepresentation(1)
+                
+                if val.startswith("0x") and len(val) == 10:
+                    print(val)
+    
+    ins = getInstructionAfter(ins)
+    counter += 1
+```
+
+It's pretty hacky, but what it will do is iterate through the sample, find all instances of `MOV` instructions, and if a 4-byte value is being moved into `EAX` or `EBX` (the ones I saw commonly being used), it will print out those instructions.
+
+The returned results cannot be used immediately, as there are some values returned that will cause lots of false positive (e.g. `0xfffffffe`), and they are all the wrong endianess to use in YARA strings. As such, I put together a CyberChef script where I have removed some results, swapped the endianess, and put them in a nice format to use in YARA, which you can find [here](https://gchq.github.io/CyberChef/#recipe=Unique('Line%20feed',false)Fork('%5C%5Cn','%5C%5Cn',false)Find_/_Replace(%7B'option':'Simple%20string','string':'0x'%7D,'',true,false,true,false)Swap_endianness('Hex',4,true)&input=MHhhMDAwMDQwNgoweGEwMDAwNDAxCjB4YTAwMDA0MDIKMHhhMDAwMGMwYwoweGEwMDAwYzAyCjB4YTAwMDA3MDEKMHhhMDAwMDgwNwoweGEwMDAwNzAyCjB4YTAwMDA2MDQKMHhhMDAwMDYwOAoweGEwMDAwNjAyCjB4YTAwMDA4MGMKMHhhMDAwMDgwNgoweGEwMDAwODA0CjB4YTAwMzEwMDcKMHhhMDAzMTAwOQoweGEwMDMxMDExCjB4YTAwMzEwMDkKMHhhMDAzMTAwOQoweGEwMDMxMDAyCjB4YTAwODA0MDQKMHhhMDA4MDQwNwoweGEwMDAwMzAyCjB4YTAwODA0MDIKMHhhMDA4MDEwNAoweGEwMDgwMTA2CjB4YTAwODAxMGUKMHhhMDA4MDEwZQoweGEwMDgwMjAxCjB4YTAwODAyMDIKMHhhMDA4MDIwNAoweGEwMDgwMjA2CjB4YTAwODAyMDEKMHhhMDA4MDIwMgoweGMwMDAwMDAxCjB4YTAwODBhMDIKMHhhMDAzMDYwMgoweGEwMDMwNjA0CjB4YTAwMzA2MTAKMHhhMDAzMDYwZQoweDgwMDIwODAyCjB4ODAwMjA4MDYKMHg4MDAyMDgwMQoweDgwMDIwODA0CjB4ODAwMjA4MDcKMHg4MDAyMDgwNwoweDgwMDIwODA0CjB4ODAwMjA4MDIKMHg4MDA3ODA3MQoweDgwMDMwMTA2CjB4ODAwMzAxMDYKMHg4MDAzMDEwMgoweDgwMDMwNjAyCjB4ODAwMzA2MDEKMHg4MDAzMDcwMgoweDgwMDMwNzA2CjB4ODAwNDA2MDcKMHg4MDA0MDYwNAoweDgwMDQwNjA1CjB4ODAwNDA2MDIKMHg4MDA0MTYwNwoweDgwMDQxNjA0CjB4ODAwNDE2MDYKMHg4MDA0MTYwMgoweDgwMDQyODAyCjB4ODAwNDI4MDcKMHg4MDA0MGIwNgoweDgwMDQwYjAyCjB4ODAwNDBjMDIKMHg4MDA0MGQwMgoweDgwMDQwZDA2CjB4ODAwNDFjMDIKMHg4MDA0MWMwNAoweDgwMDQxYzA3CjB4ODAwNDFjMDYKMHg4MDA0MWMwYwoweDgwMDQxYzAyCjB4ODAwNDFkMDYKMHg4MDA0MjIwOQoweDgwMDQwODA5CjB4ODAwNDA5MDkKMHg4MDA0MDcwOQoweDgwMDQyMjAyCjB4ODAwNDAxMGMKMHg4MDA0MDEwMgoweDgwMDQxMDAyCjB4ODAwNDExMDIKMHg4MDA0MTEwNwoweDgwMDQxMTBhCjB4ODAwNDEyMDIKMHg4MDA0MTIwYQoweDgwMDQxMjA3CjB4ODAwNDBmMDEKMHg4MDA0MGYwNwoweDgwMDQwZjAyCjB4ODAwNDBmMGEKMHg4MDA0MGYwYgoweDgwMDQwZjA3CjB4ODAwNDBmMDIKMHg4MDA0MGYwMQoweDgwMDQwZjAyCjB4ODAwNDAyMDIKMHg4MDA0MDQwNwoweDgwMDQwNDBjCjB4ODAwNDA0MDIKMHg4MDA0MTQwMgoweDgwMDQxNTAyCjB4ODAwNDE0MGEKMHg4MDA0MTUwNwoweDgwMDQxNTBjCjB4ODAwNDI1MDkKMHg4MDA0MjUwMgoweDgwMDQyNjAyCjB4ODAwNDI2MDIKMHg4MDA0MjcwNgoweDgwMDQyNzA3CjB4ODAwNDI3MDcKMHg4MDA0MjcwOQoweDgwMDQyNzA3CjB4ODAwNDI3MGMKMHg4MDA0MjcwYQoweDgwMDQyNzA0CjB4ODAwNDI3MDIKMHg0ZWM0ZWM0ZgoweDgwMDQxMzA0CjB4ODAwNDEzMGMKMHg4MDA0MTMwNgoweDgwMDQxMzA2CjB4ODAwNDEzMDEKMHg4MDA0MTMwMgoweDgwMDQyMTBjCjB4ODAwNDIxMDYKMHg4MDA0MjEwNgoweDgwMDQyMTA1CjB4ODAwNDIxMDIKMHg4MDA0MTcwNgoweDgwMDQxNzA2CjB4ODAwNDE3MGMKMHg4MDA0MTcwMgoweDgwMDUwNTAyCjB4ODAwNTA1MDYKMHg4MDA1MDUwNgoweDgwMDUwNzA2CjB4ODAwNTA3MDQKMHg4MDA1MDcwMgoweDgwMDUwOTAyCjB4ODAwNTA5MDYKMHg4MDA3MGIwMQoweDgwMDcwYjA2CjB4ODAwNzBiMDIKMHg4MDA3MGMwNgoweDgwMDcwYzAyCjB4ODAwMTAzMDUKMHg4MDAxMDMwNQoweDgwMDEwMzAy).
+
+I'll use the output in the next post to start writing rules with.
