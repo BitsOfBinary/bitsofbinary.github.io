@@ -92,6 +92,16 @@ redirect_from:
   - /yara/2023/03/29/100daysofyara-day-88.html
   - /yara/2023/03/30/100daysofyara-day-89.html
   - /yara/2023/03/31/100daysofyara-day-90.html
+  - /yara/2023/04/01/100daysofyara-day-91.html
+  - /yara/2023/04/02/100daysofyara-day-92.html
+  - /yara/2023/04/03/100daysofyara-day-93.html
+  - /yara/2023/04/04/100daysofyara-day-94.html
+  - /yara/2023/04/05/100daysofyara-day-95.html
+  - /yara/2023/04/06/100daysofyara-day-96.html
+  - /yara/2023/04/07/100daysofyara-day-97.html
+  - /yara/2023/04/08/100daysofyara-day-98.html
+  - /yara/2023/04/09/100daysofyara-day-99.html
+  - /yara/2023/04/10/100daysofyara-day-100.html
 date: 2023-01-01 00:00:00 -0000
 categories: yara
 ---
@@ -3150,3 +3160,842 @@ It's pretty hacky, but what it will do is iterate through the sample, find all i
 The returned results cannot be used immediately, as there are some values returned that will cause lots of false positive (e.g. `0xfffffffe`), and they are all the wrong endianess to use in YARA strings. As such, I put together a CyberChef script where I have removed some results, swapped the endianess, and put them in a nice format to use in YARA, which you can find [here](https://gchq.github.io/CyberChef/#recipe=Unique('Line%20feed',false)Fork('%5C%5Cn','%5C%5Cn',false)Find_/_Replace(%7B'option':'Simple%20string','string':'0x'%7D,'',true,false,true,false)Swap_endianness('Hex',4,true)&input=MHhhMDAwMDQwNgoweGEwMDAwNDAxCjB4YTAwMDA0MDIKMHhhMDAwMGMwYwoweGEwMDAwYzAyCjB4YTAwMDA3MDEKMHhhMDAwMDgwNwoweGEwMDAwNzAyCjB4YTAwMDA2MDQKMHhhMDAwMDYwOAoweGEwMDAwNjAyCjB4YTAwMDA4MGMKMHhhMDAwMDgwNgoweGEwMDAwODA0CjB4YTAwMzEwMDcKMHhhMDAzMTAwOQoweGEwMDMxMDExCjB4YTAwMzEwMDkKMHhhMDAzMTAwOQoweGEwMDMxMDAyCjB4YTAwODA0MDQKMHhhMDA4MDQwNwoweGEwMDAwMzAyCjB4YTAwODA0MDIKMHhhMDA4MDEwNAoweGEwMDgwMTA2CjB4YTAwODAxMGUKMHhhMDA4MDEwZQoweGEwMDgwMjAxCjB4YTAwODAyMDIKMHhhMDA4MDIwNAoweGEwMDgwMjA2CjB4YTAwODAyMDEKMHhhMDA4MDIwMgoweGMwMDAwMDAxCjB4YTAwODBhMDIKMHhhMDAzMDYwMgoweGEwMDMwNjA0CjB4YTAwMzA2MTAKMHhhMDAzMDYwZQoweDgwMDIwODAyCjB4ODAwMjA4MDYKMHg4MDAyMDgwMQoweDgwMDIwODA0CjB4ODAwMjA4MDcKMHg4MDAyMDgwNwoweDgwMDIwODA0CjB4ODAwMjA4MDIKMHg4MDA3ODA3MQoweDgwMDMwMTA2CjB4ODAwMzAxMDYKMHg4MDAzMDEwMgoweDgwMDMwNjAyCjB4ODAwMzA2MDEKMHg4MDAzMDcwMgoweDgwMDMwNzA2CjB4ODAwNDA2MDcKMHg4MDA0MDYwNAoweDgwMDQwNjA1CjB4ODAwNDA2MDIKMHg4MDA0MTYwNwoweDgwMDQxNjA0CjB4ODAwNDE2MDYKMHg4MDA0MTYwMgoweDgwMDQyODAyCjB4ODAwNDI4MDcKMHg4MDA0MGIwNgoweDgwMDQwYjAyCjB4ODAwNDBjMDIKMHg4MDA0MGQwMgoweDgwMDQwZDA2CjB4ODAwNDFjMDIKMHg4MDA0MWMwNAoweDgwMDQxYzA3CjB4ODAwNDFjMDYKMHg4MDA0MWMwYwoweDgwMDQxYzAyCjB4ODAwNDFkMDYKMHg4MDA0MjIwOQoweDgwMDQwODA5CjB4ODAwNDA5MDkKMHg4MDA0MDcwOQoweDgwMDQyMjAyCjB4ODAwNDAxMGMKMHg4MDA0MDEwMgoweDgwMDQxMDAyCjB4ODAwNDExMDIKMHg4MDA0MTEwNwoweDgwMDQxMTBhCjB4ODAwNDEyMDIKMHg4MDA0MTIwYQoweDgwMDQxMjA3CjB4ODAwNDBmMDEKMHg4MDA0MGYwNwoweDgwMDQwZjAyCjB4ODAwNDBmMGEKMHg4MDA0MGYwYgoweDgwMDQwZjA3CjB4ODAwNDBmMDIKMHg4MDA0MGYwMQoweDgwMDQwZjAyCjB4ODAwNDAyMDIKMHg4MDA0MDQwNwoweDgwMDQwNDBjCjB4ODAwNDA0MDIKMHg4MDA0MTQwMgoweDgwMDQxNTAyCjB4ODAwNDE0MGEKMHg4MDA0MTUwNwoweDgwMDQxNTBjCjB4ODAwNDI1MDkKMHg4MDA0MjUwMgoweDgwMDQyNjAyCjB4ODAwNDI2MDIKMHg4MDA0MjcwNgoweDgwMDQyNzA3CjB4ODAwNDI3MDcKMHg4MDA0MjcwOQoweDgwMDQyNzA3CjB4ODAwNDI3MGMKMHg4MDA0MjcwYQoweDgwMDQyNzA0CjB4ODAwNDI3MDIKMHg0ZWM0ZWM0ZgoweDgwMDQxMzA0CjB4ODAwNDEzMGMKMHg4MDA0MTMwNgoweDgwMDQxMzA2CjB4ODAwNDEzMDEKMHg4MDA0MTMwMgoweDgwMDQyMTBjCjB4ODAwNDIxMDYKMHg4MDA0MjEwNgoweDgwMDQyMTA1CjB4ODAwNDIxMDIKMHg4MDA0MTcwNgoweDgwMDQxNzA2CjB4ODAwNDE3MGMKMHg4MDA0MTcwMgoweDgwMDUwNTAyCjB4ODAwNTA1MDYKMHg4MDA1MDUwNgoweDgwMDUwNzA2CjB4ODAwNTA3MDQKMHg4MDA1MDcwMgoweDgwMDUwOTAyCjB4ODAwNTA5MDYKMHg4MDA3MGIwMQoweDgwMDcwYjA2CjB4ODAwNzBiMDIKMHg4MDA3MGMwNgoweDgwMDcwYzAyCjB4ODAwMTAzMDUKMHg4MDAxMDMwNQoweDgwMDEwMzAy).
 
 I'll use the output in the next post to start writing rules with.
+
+# Day 91 - AcidBox - SSP DLL Code - Error Return Codes - Part 2
+There are 133 error return codes output by the script in the previous post. None of these codes on their own are good enough to write a rule with; if I run a rule looking for any of them over `system32`, I get thousands of results.
+
+If I increase the condition to `10 of them`, I still get hits from `system32`, suggesting maybe these codes are used in some legitimate files/those bytes are too common? 
+
+So for a first pass at a rule, we should make sure we look for a sufficient amount of the strings, and apply some extra modifiers to reduce the chances of getting false positives.
+```
+rule AcidBox_SSP_DLL_Loader_Unique_Return_Codes_A {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on unique return codes seen in functions"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        $ = {06 04 00 a0}
+        $ = {01 04 00 a0}
+        $ = {02 04 00 a0}
+        $ = {0c 0c 00 a0}
+        $ = {02 0c 00 a0}
+        $ = {01 07 00 a0}
+        $ = {07 08 00 a0}
+        $ = {02 07 00 a0}
+        $ = {04 06 00 a0}
+        $ = {08 06 00 a0}
+        $ = {02 06 00 a0}
+        $ = {0c 08 00 a0}
+        $ = {06 08 00 a0}
+        $ = {04 08 00 a0}
+        $ = {07 10 03 a0}
+        $ = {09 10 03 a0}
+        $ = {11 10 03 a0}
+        $ = {02 10 03 a0}
+        $ = {04 04 08 a0}
+        $ = {07 04 08 a0}
+        $ = {02 03 00 a0}
+        $ = {02 04 08 a0}
+        $ = {04 01 08 a0}
+        $ = {06 01 08 a0}
+        $ = {0e 01 08 a0}
+        $ = {01 02 08 a0}
+        $ = {02 02 08 a0}
+        $ = {04 02 08 a0}
+        $ = {06 02 08 a0}
+        $ = {01 00 00 c0}
+        $ = {02 0a 08 a0}
+        $ = {02 06 03 a0}
+        $ = {04 06 03 a0}
+        $ = {10 06 03 a0}
+        $ = {0e 06 03 a0}
+        $ = {02 08 02 80}
+        $ = {06 08 02 80}
+        $ = {01 08 02 80}
+        $ = {04 08 02 80}
+        $ = {07 08 02 80}
+        $ = {71 80 07 80}
+        $ = {06 01 03 80}
+        $ = {02 01 03 80}
+        $ = {02 06 03 80}
+        $ = {01 06 03 80}
+        $ = {02 07 03 80}
+        $ = {06 07 03 80}
+        $ = {07 06 04 80}
+        $ = {04 06 04 80}
+        $ = {05 06 04 80}
+        $ = {02 06 04 80}
+        $ = {07 16 04 80}
+        $ = {04 16 04 80}
+        $ = {06 16 04 80}
+        $ = {02 16 04 80}
+        $ = {02 28 04 80}
+        $ = {07 28 04 80}
+        $ = {06 0b 04 80}
+        $ = {02 0b 04 80}
+        $ = {02 0c 04 80}
+        $ = {02 0d 04 80}
+        $ = {06 0d 04 80}
+        $ = {02 1c 04 80}
+        $ = {04 1c 04 80}
+        $ = {07 1c 04 80}
+        $ = {06 1c 04 80}
+        $ = {0c 1c 04 80}
+        $ = {06 1d 04 80}
+        $ = {09 22 04 80}
+        $ = {09 08 04 80}
+        $ = {09 09 04 80}
+        $ = {09 07 04 80}
+        $ = {02 22 04 80}
+        $ = {0c 01 04 80}
+        $ = {02 01 04 80}
+        $ = {02 10 04 80}
+        $ = {02 11 04 80}
+        $ = {07 11 04 80}
+        $ = {0a 11 04 80}
+        $ = {02 12 04 80}
+        $ = {0a 12 04 80}
+        $ = {07 12 04 80}
+        $ = {01 0f 04 80}
+        $ = {07 0f 04 80}
+        $ = {02 0f 04 80}
+        $ = {0a 0f 04 80}
+        $ = {0b 0f 04 80}
+        $ = {02 02 04 80}
+        $ = {07 04 04 80}
+        $ = {0c 04 04 80}
+        $ = {02 04 04 80}
+        $ = {02 14 04 80}
+        $ = {02 15 04 80}
+        $ = {0a 14 04 80}
+        $ = {07 15 04 80}
+        $ = {0c 15 04 80}
+        $ = {09 25 04 80}
+        $ = {02 25 04 80}
+        $ = {02 26 04 80}
+        $ = {06 27 04 80}
+        $ = {07 27 04 80}
+        $ = {09 27 04 80}
+        $ = {0c 27 04 80}
+        $ = {0a 27 04 80}
+        $ = {04 27 04 80}
+        $ = {02 27 04 80}
+        $ = {04 13 04 80}
+        $ = {0c 13 04 80}
+        $ = {06 13 04 80}
+        $ = {01 13 04 80}
+        $ = {02 13 04 80}
+        $ = {0c 21 04 80}
+        $ = {06 21 04 80}
+        $ = {05 21 04 80}
+        $ = {02 21 04 80}
+        $ = {06 17 04 80}
+        $ = {0c 17 04 80}
+        $ = {02 17 04 80}
+        $ = {02 05 05 80}
+        $ = {06 05 05 80}
+        $ = {06 07 05 80}
+        $ = {04 07 05 80}
+        $ = {02 07 05 80}
+        $ = {02 09 05 80}
+        $ = {06 09 05 80}
+        $ = {01 0b 07 80}
+        $ = {06 0b 07 80}
+        $ = {02 0b 07 80}
+        $ = {06 0c 07 80}
+        $ = {02 0c 07 80}
+        $ = {05 03 01 80}
+        $ = {02 03 01 80}
+        
+    condition:
+        uint16(0) == 0x5A4D and filesize < 500KB and 80 of them
+}
+```
+
+# Day 92 - AcidBox - SSP DLL Code - Error Return Codes - Part 3
+My first attempt to try and reduce the number of error return codes to search for, was to combine the heuristics of only looking for them in the `.text` section, and ensure that they don't appear more than 3 times per sample. As such, the updated condition looks like this:
+```
+uint16(0) == 0x5A4D and filesize < 500KB and 30 of them and not for any of them : (
+    not $ in (pe.sections[0].raw_data_offset .. pe.sections[0].raw_data_offset + pe.sections[0].raw_data_size) and
+    # > 3
+)
+```
+
+To break this rule down:
+- `not for any of them : ( ... )` - this performs a for loop over every occurance of every string matched, and looks to see that the result is `false` via the `not` operator
+- `not $ in ( ... )` - given we're in a for loop, we can refer to the strings anonymously using just `$`
+- `(pe.sections[0].raw_data_offset .. pe.sections[0].raw_data_offset + pe.sections[0].raw_data_size)` - I'm assuming here that the `.text` section is the first section in the PE - and by doing this I can use this to construct a range to check the string in that will represent the whole `.text` section
+- `# > 3` - again, using the fact that the strings are anonymous to see if they appear more than 3 times
+
+With some testing, I found that there were reduced FPs with this lower count of strings, but that there will still some files being detected that I don't think were related. So while it is an improvement in that the rule is a bit more loose, it isn't quite ideal! Find the full rule below:
+```
+import "pe"
+
+rule AcidBox_SSP_DLL_Loader_Unique_Return_Codes_B {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on unique return codes seen in functions"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        $ = {06 04 00 a0}
+        $ = {01 04 00 a0}
+        $ = {02 04 00 a0}
+        $ = {0c 0c 00 a0}
+        $ = {02 0c 00 a0}
+        $ = {01 07 00 a0}
+        $ = {07 08 00 a0}
+        $ = {02 07 00 a0}
+        $ = {04 06 00 a0}
+        $ = {08 06 00 a0}
+        $ = {02 06 00 a0}
+        $ = {0c 08 00 a0}
+        $ = {06 08 00 a0}
+        $ = {04 08 00 a0}
+        $ = {07 10 03 a0}
+        $ = {09 10 03 a0}
+        $ = {11 10 03 a0}
+        $ = {02 10 03 a0}
+        $ = {04 04 08 a0}
+        $ = {07 04 08 a0}
+        $ = {02 03 00 a0}
+        $ = {02 04 08 a0}
+        $ = {04 01 08 a0}
+        $ = {06 01 08 a0}
+        $ = {0e 01 08 a0}
+        $ = {01 02 08 a0}
+        $ = {02 02 08 a0}
+        $ = {04 02 08 a0}
+        $ = {06 02 08 a0}
+        $ = {01 00 00 c0}
+        $ = {02 0a 08 a0}
+        $ = {02 06 03 a0}
+        $ = {04 06 03 a0}
+        $ = {10 06 03 a0}
+        $ = {0e 06 03 a0}
+        $ = {02 08 02 80}
+        $ = {06 08 02 80}
+        $ = {01 08 02 80}
+        $ = {04 08 02 80}
+        $ = {07 08 02 80}
+        $ = {71 80 07 80}
+        $ = {06 01 03 80}
+        $ = {02 01 03 80}
+        $ = {02 06 03 80}
+        $ = {01 06 03 80}
+        $ = {02 07 03 80}
+        $ = {06 07 03 80}
+        $ = {07 06 04 80}
+        $ = {04 06 04 80}
+        $ = {05 06 04 80}
+        $ = {02 06 04 80}
+        $ = {07 16 04 80}
+        $ = {04 16 04 80}
+        $ = {06 16 04 80}
+        $ = {02 16 04 80}
+        $ = {02 28 04 80}
+        $ = {07 28 04 80}
+        $ = {06 0b 04 80}
+        $ = {02 0b 04 80}
+        $ = {02 0c 04 80}
+        $ = {02 0d 04 80}
+        $ = {06 0d 04 80}
+        $ = {02 1c 04 80}
+        $ = {04 1c 04 80}
+        $ = {07 1c 04 80}
+        $ = {06 1c 04 80}
+        $ = {0c 1c 04 80}
+        $ = {06 1d 04 80}
+        $ = {09 22 04 80}
+        $ = {09 08 04 80}
+        $ = {09 09 04 80}
+        $ = {09 07 04 80}
+        $ = {02 22 04 80}
+        $ = {0c 01 04 80}
+        $ = {02 01 04 80}
+        $ = {02 10 04 80}
+        $ = {02 11 04 80}
+        $ = {07 11 04 80}
+        $ = {0a 11 04 80}
+        $ = {02 12 04 80}
+        $ = {0a 12 04 80}
+        $ = {07 12 04 80}
+        $ = {01 0f 04 80}
+        $ = {07 0f 04 80}
+        $ = {02 0f 04 80}
+        $ = {0a 0f 04 80}
+        $ = {0b 0f 04 80}
+        $ = {02 02 04 80}
+        $ = {07 04 04 80}
+        $ = {0c 04 04 80}
+        $ = {02 04 04 80}
+        $ = {02 14 04 80}
+        $ = {02 15 04 80}
+        $ = {0a 14 04 80}
+        $ = {07 15 04 80}
+        $ = {0c 15 04 80}
+        $ = {09 25 04 80}
+        $ = {02 25 04 80}
+        $ = {02 26 04 80}
+        $ = {06 27 04 80}
+        $ = {07 27 04 80}
+        $ = {09 27 04 80}
+        $ = {0c 27 04 80}
+        $ = {0a 27 04 80}
+        $ = {04 27 04 80}
+        $ = {02 27 04 80}
+        $ = {04 13 04 80}
+        $ = {0c 13 04 80}
+        $ = {06 13 04 80}
+        $ = {01 13 04 80}
+        $ = {02 13 04 80}
+        $ = {0c 21 04 80}
+        $ = {06 21 04 80}
+        $ = {05 21 04 80}
+        $ = {02 21 04 80}
+        $ = {06 17 04 80}
+        $ = {0c 17 04 80}
+        $ = {02 17 04 80}
+        $ = {02 05 05 80}
+        $ = {06 05 05 80}
+        $ = {06 07 05 80}
+        $ = {04 07 05 80}
+        $ = {02 07 05 80}
+        $ = {02 09 05 80}
+        $ = {06 09 05 80}
+        $ = {01 0b 07 80}
+        $ = {06 0b 07 80}
+        $ = {02 0b 07 80}
+        $ = {06 0c 07 80}
+        $ = {02 0c 07 80}
+        $ = {05 03 01 80}
+        $ = {02 03 01 80}
+        
+    condition:
+        uint16(0) == 0x5A4D and filesize < 500KB and 30 of them and not for any of them : (
+            not $ in (pe.sections[0].raw_data_offset .. pe.sections[0].raw_data_offset + pe.sections[0].raw_data_size) and
+            # > 3
+        )
+}
+```
+
+# Day 93 - AcidBox - SSP DLL Code - Error Return Codes - Part 4
+To use these error codes in a slightly different way, let's consider what the script from part 1 of these posts was doing: it was looking for instances where 4-byte values were being loading into `EAX` or `EBX` (which are subsequently returned by a function).
+
+Using this fact, we can rewrite our rules to only look for instances where these error codes are being loaded into either of these registers, e.g. `$ = {(b8|bb) 06 04 00 a0}`. I found that this approach meant that the overall number of strings required to be present could be significantly reduced!
+```
+rule AcidBox_SSP_DLL_Loader_Unique_Return_Codes_C {
+    meta:
+        description = "Detects AcidBox SSP DLL loaders, based on unique return codes seen in functions"
+        author = "BitsOfBinary"
+        reference = "https://unit42.paloaltonetworks.com/acidbox-rare-malware/"
+        hash = "003669761229d3e1db0f5a5b333ef62b3dffcc8e27c821ce9018362e0a2df7e9"
+        
+    strings:
+        $ = {(b8|bb) 06 04 00 a0}
+        $ = {(b8|bb) 01 04 00 a0}
+        $ = {(b8|bb) 02 04 00 a0}
+        $ = {(b8|bb) 0c 0c 00 a0}
+        $ = {(b8|bb) 02 0c 00 a0}
+        $ = {(b8|bb) 01 07 00 a0}
+        $ = {(b8|bb) 07 08 00 a0}
+        $ = {(b8|bb) 02 07 00 a0}
+        $ = {(b8|bb) 04 06 00 a0}
+        $ = {(b8|bb) 08 06 00 a0}
+        $ = {(b8|bb) 02 06 00 a0}
+        $ = {(b8|bb) 0c 08 00 a0}
+        $ = {(b8|bb) 06 08 00 a0}
+        $ = {(b8|bb) 04 08 00 a0}
+        $ = {(b8|bb) 07 10 03 a0}
+        $ = {(b8|bb) 09 10 03 a0}
+        $ = {(b8|bb) 11 10 03 a0}
+        $ = {(b8|bb) 02 10 03 a0}
+        $ = {(b8|bb) 04 04 08 a0}
+        $ = {(b8|bb) 07 04 08 a0}
+        $ = {(b8|bb) 02 03 00 a0}
+        $ = {(b8|bb) 02 04 08 a0}
+        $ = {(b8|bb) 04 01 08 a0}
+        $ = {(b8|bb) 06 01 08 a0}
+        $ = {(b8|bb) 0e 01 08 a0}
+        $ = {(b8|bb) 01 02 08 a0}
+        $ = {(b8|bb) 02 02 08 a0}
+        $ = {(b8|bb) 04 02 08 a0}
+        $ = {(b8|bb) 06 02 08 a0}
+        $ = {(b8|bb) 01 00 00 c0}
+        $ = {(b8|bb) 02 0a 08 a0}
+        $ = {(b8|bb) 02 06 03 a0}
+        $ = {(b8|bb) 04 06 03 a0}
+        $ = {(b8|bb) 10 06 03 a0}
+        $ = {(b8|bb) 0e 06 03 a0}
+        $ = {(b8|bb) 02 08 02 80}
+        $ = {(b8|bb) 06 08 02 80}
+        $ = {(b8|bb) 01 08 02 80}
+        $ = {(b8|bb) 04 08 02 80}
+        $ = {(b8|bb) 07 08 02 80}
+        $ = {(b8|bb) 71 80 07 80}
+        $ = {(b8|bb) 06 01 03 80}
+        $ = {(b8|bb) 02 01 03 80}
+        $ = {(b8|bb) 02 06 03 80}
+        $ = {(b8|bb) 01 06 03 80}
+        $ = {(b8|bb) 02 07 03 80}
+        $ = {(b8|bb) 06 07 03 80}
+        $ = {(b8|bb) 07 06 04 80}
+        $ = {(b8|bb) 04 06 04 80}
+        $ = {(b8|bb) 05 06 04 80}
+        $ = {(b8|bb) 02 06 04 80}
+        $ = {(b8|bb) 07 16 04 80}
+        $ = {(b8|bb) 04 16 04 80}
+        $ = {(b8|bb) 06 16 04 80}
+        $ = {(b8|bb) 02 16 04 80}
+        $ = {(b8|bb) 02 28 04 80}
+        $ = {(b8|bb) 07 28 04 80}
+        $ = {(b8|bb) 06 0b 04 80}
+        $ = {(b8|bb) 02 0b 04 80}
+        $ = {(b8|bb) 02 0c 04 80}
+        $ = {(b8|bb) 02 0d 04 80}
+        $ = {(b8|bb) 06 0d 04 80}
+        $ = {(b8|bb) 02 1c 04 80}
+        $ = {(b8|bb) 04 1c 04 80}
+        $ = {(b8|bb) 07 1c 04 80}
+        $ = {(b8|bb) 06 1c 04 80}
+        $ = {(b8|bb) 0c 1c 04 80}
+        $ = {(b8|bb) 06 1d 04 80}
+        $ = {(b8|bb) 09 22 04 80}
+        $ = {(b8|bb) 09 08 04 80}
+        $ = {(b8|bb) 09 09 04 80}
+        $ = {(b8|bb) 09 07 04 80}
+        $ = {(b8|bb) 02 22 04 80}
+        $ = {(b8|bb) 0c 01 04 80}
+        $ = {(b8|bb) 02 01 04 80}
+        $ = {(b8|bb) 02 10 04 80}
+        $ = {(b8|bb) 02 11 04 80}
+        $ = {(b8|bb) 07 11 04 80}
+        $ = {(b8|bb) 0a 11 04 80}
+        $ = {(b8|bb) 02 12 04 80}
+        $ = {(b8|bb) 0a 12 04 80}
+        $ = {(b8|bb) 07 12 04 80}
+        $ = {(b8|bb) 01 0f 04 80}
+        $ = {(b8|bb) 07 0f 04 80}
+        $ = {(b8|bb) 02 0f 04 80}
+        $ = {(b8|bb) 0a 0f 04 80}
+        $ = {(b8|bb) 0b 0f 04 80}
+        $ = {(b8|bb) 02 02 04 80}
+        $ = {(b8|bb) 07 04 04 80}
+        $ = {(b8|bb) 0c 04 04 80}
+        $ = {(b8|bb) 02 04 04 80}
+        $ = {(b8|bb) 02 14 04 80}
+        $ = {(b8|bb) 02 15 04 80}
+        $ = {(b8|bb) 0a 14 04 80}
+        $ = {(b8|bb) 07 15 04 80}
+        $ = {(b8|bb) 0c 15 04 80}
+        $ = {(b8|bb) 09 25 04 80}
+        $ = {(b8|bb) 02 25 04 80}
+        $ = {(b8|bb) 02 26 04 80}
+        $ = {(b8|bb) 06 27 04 80}
+        $ = {(b8|bb) 07 27 04 80}
+        $ = {(b8|bb) 09 27 04 80}
+        $ = {(b8|bb) 0c 27 04 80}
+        $ = {(b8|bb) 0a 27 04 80}
+        $ = {(b8|bb) 04 27 04 80}
+        $ = {(b8|bb) 02 27 04 80}
+        $ = {(b8|bb) 04 13 04 80}
+        $ = {(b8|bb) 0c 13 04 80}
+        $ = {(b8|bb) 06 13 04 80}
+        $ = {(b8|bb) 01 13 04 80}
+        $ = {(b8|bb) 02 13 04 80}
+        $ = {(b8|bb) 0c 21 04 80}
+        $ = {(b8|bb) 06 21 04 80}
+        $ = {(b8|bb) 05 21 04 80}
+        $ = {(b8|bb) 02 21 04 80}
+        $ = {(b8|bb) 06 17 04 80}
+        $ = {(b8|bb) 0c 17 04 80}
+        $ = {(b8|bb) 02 17 04 80}
+        $ = {(b8|bb) 02 05 05 80}
+        $ = {(b8|bb) 06 05 05 80}
+        $ = {(b8|bb) 06 07 05 80}
+        $ = {(b8|bb) 04 07 05 80}
+        $ = {(b8|bb) 02 07 05 80}
+        $ = {(b8|bb) 02 09 05 80}
+        $ = {(b8|bb) 06 09 05 80}
+        $ = {(b8|bb) 01 0b 07 80}
+        $ = {(b8|bb) 06 0b 07 80}
+        $ = {(b8|bb) 02 0b 07 80}
+        $ = {(b8|bb) 06 0c 07 80}
+        $ = {(b8|bb) 02 0c 07 80}
+        $ = {(b8|bb) 05 03 01 80}
+        $ = {(b8|bb) 02 03 01 80}
+        
+    condition:
+        uint16(0) == 0x5A4D and 10 of them
+}
+```
+
+We could extend this further if we wanted, to include all possible registers that these values are being loaded into; but I'll leave that up to you if you'd like to try that out.
+
+# Day 94 - AcidBox - Main Worker DLL Technique - SeLoadDriverPrivilege Stack String - Part 1
+To change things up a bit, let's look at the [AcidBox main worker DLL referenced by Palo Alto](https://unit42.paloaltonetworks.com/acidbox-rare-malware/): `eb30a1822bd6f503f8151cb04bfd315a62fa67dbfe1f573e6fcfd74636ecedd5`
+
+A lot of our already written rules hit on this sample, including the format strings combo, crypto routine, and return codes. So we already have some good coverage! Instead of writing a YARA rule for strings, meta features, or code, let's instead focus on a technique to signature.
+
+The main worker DLL uses stack strings to obfuscate some of the important strings (which is similar to the loader, which explains why we weren't seeing as many strings in plaintext). One in particular is the string `SeLoadDriverPrivilege`, which is being used to attempt to set a new privilege level for itself. The following blog has some explanations about why/how it can be used maliciously: [https://www.tarlogic.com/blog/seloaddriverprivilege-privilege-escalation/](https://www.tarlogic.com/blog/seloaddriverprivilege-privilege-escalation/)
+
+![](/assets/2023-04-04_main_worker_stack_string.PNG)
+
+If you're looking at stack strings, I can recommend [@notareverser's](https://twitter.com/notareverser) Python script to generate variations of possible stack strings for a provided input: [https://gist.github.com/notareverser/4f6b9c644d4fe517889b3fbb0b4271ca](https://gist.github.com/notareverser/4f6b9c644d4fe517889b3fbb0b4271ca)
+
+If we input `SeLoadDriverPrivilege` into this script, we get the following rule:
+```
+rule stackstring_SeLoadDriverPrivilege
+{
+  strings:
+   $smallStack = {c6(45|4424)??53 c6(45|4424)??65 c6(45|4424)??4c c6(45|4424)??6f c6(45|4424)??61 c6(45|4424)??64 c6(45|4424)??44 c6(45|4424)??72 c6(45|4424)??69 c6(45|4424)??76 c6(45|4424)??65 c6(45|4424)??72 c6(45|4424)??50 c6(45|4424)??72 c6(45|4424)??69 c6(45|4424)??76 c6(45|4424)??69 c6(45|4424)??6c c6(45|4424)??65 c6(45|4424)??67 c6(45|4424)??65}
+
+   $largeStack = {c7(45|85)[1-4]53000000 c7(45|85)[1-4]65000000 c7(45|85)[1-4]4c000000 c7(45|85)[1-4]6f000000 c7(45|85)[1-4]61000000 c7(45|85)[1-4]64000000 c7(45|85)[1-4]44000000 c7(45|85)[1-4]72000000 c7(45|85)[1-4]69000000 c7(45|85)[1-4]76000000 c7(45|85)[1-4]65000000 c7(45|85)[1-4]72000000 c7(45|85)[1-4]50000000 c7(45|85)[1-4]72000000 c7(45|85)[1-4]69000000 c7(45|85)[1-4]76000000 c7(45|85)[1-4]69000000 c7(45|85)[1-4]6c000000 c7(45|85)[1-4]65000000 c7(45|85)[1-4]67000000 c7(45|85)[1-4]65000000}
+
+   $register = {b?53000000 6689???? b?65000000 6689???? b?4c000000 6689???? b?6f000000 6689???? b?61000000 6689???? b?64000000 6689???? b?44000000 6689???? b?72000000 6689???? b?69000000 6689???? b?76000000 6689???? b?65000000 6689???? b?72000000 6689???? b?50000000 6689???? b?72000000 6689???? b?69000000 6689???? b?76000000 6689???? b?69000000 6689???? b?6c000000 6689???? b?65000000 6689???? b?67000000 6689???? b?65000000 6689????}
+
+   $dword = {c7(45|85)[1-4]6f4c6553 c7(45|85)[1-4]72446461 c7(45|85)[1-4]72657669 c7(45|85)[1-4]76697250 c7(45|85)[1-4]67656c69 [0-1]c6(45|85)[1-4]65}
+
+   $pushpop = {6a535? 6a65 6689????5? 6a4c 6689????5? 6a6f 6689????5? 6a61 6689????5? 6a64 6689????5? 6a44 6689????5? 6a72 6689????5? 6a69 6689????5? 6a76 6689????5? 6a65 6689????5? 6a72 6689????5? 6a50 6689????5? 6a72 6689????5? 6a69 6689????5? 6a76 6689????5? 6a69 6689????5? 6a6c 6689????5? 6a65 6689????5? 6a67 6689????5?}
+
+   $callOverString = {e81500000053654c6f616444726976657250726976696c6567655? }
+
+  condition:
+    any of them
+}
+```
+
+Unforunately in this case, the stack string is being built up out of order, meaning this auto-generated rule won't be able to pick it up. So let's look in the next post about a way we can deal with this.
+
+# Day 95 - AcidBox - Main Worker DLL Technique - SeLoadDriverPrivilege Stack String - Part 2
+Let's look at the code that is loading the stack string:
+```
+       1800097cf c7  44  24       MOV        dword ptr [RSP  + Stack [-0x21 ]],"eliv"
+                 37  76  69 
+                 6c  65
+       1800097d7 c7  44  24       MOV        dword ptr [RSP  + local_2f[0] ],"aoLe"
+                 29  65  4c 
+                 6f  61
+       1800097df 66  c7  44       MOV        word ptr [RSP  + local_1f +0x2 ],"eg"
+                 24  3b  67  65
+       1800097e6 c7  44  24       MOV        dword ptr [RSP  + local_2f[5] ],"virD"
+                 2e  44  72 
+                 69  76
+       1800097ee c7  44  24       MOV        dword ptr [RSP  + Stack [-0x25 ]],"irPr"
+                 33  72  50 
+                 72  69
+       1800097f6 c6  44  24       MOV        byte ptr [RSP  + local_2f[4] ],'d'
+                 2d  64
+       1800097fb c6  44  24       MOV        byte ptr [RSP  + Stack [-0x26 ]],'e'
+                 32  65
+       180009800 c6  44  24       MOV        byte ptr [RSP  + local_30 ],'S'
+                 28  53
+```
+
+As we can see, the different parts of the string are being loaded on to the stack out of order, and in variable amounts: either 1, 2, or 4 bytes at a time. As we can see, each set of instructions looks like this (note that we're adding wildcards to the stack offsets):
+- 1-byte - `C6 44 24 ?? AA`
+- 2-byte - `66 C7 44 24 ?? AA BB`
+- 4-byte - `C7 44 24 ?? AA BB CC DD`
+
+So, if we want to write a YARA rule for this stack string, we will have to do it in an un-ordered way, and if we want to hunt for more samples we can't necessarily assume that it will be in the same order we observe here. As such, we will need to generate all possible instructions for loading the characters onto the stack. The following Python code can do this for us, and format them as YARA strings:
+```python
+{% raw %}
+import binascii
+
+api_name = "SeLoadDriverPrivilege"
+
+one_byte_strs = []
+two_byte_strs = []
+four_byte_strs = []
+
+for c in api_name:
+    hex_str = f"$one_byte_mov_{c}_stack = {{C6 44 24 ?? {format(ord(c), 'x')}}}"
+    
+    if hex_str not in one_byte_strs:
+        one_byte_strs.append(hex_str)
+        
+for i in range(0, len(api_name)-1):
+    chars = api_name[i:i+2]
+    two_bytes = binascii.hexlify(chars.encode(), ' ').decode()
+    
+    hex_str = f"$two_byte_mov_{chars}_stack = {{66 C7 44 24 ?? {two_bytes}}}"
+    
+    if hex_str not in two_byte_strs:
+        two_byte_strs.append(hex_str)
+        
+for i in range(0, len(api_name)-3):
+    chars = api_name[i:i+4]
+    four_bytes = binascii.hexlify(chars.encode(), ' ').decode()
+    
+    hex_str = f"$four_byte_mov_{chars}_stack = {{C7 44 24 ?? {four_bytes}}}"
+    
+    if hex_str not in four_byte_strs:
+        four_byte_strs.append(hex_str)
+        
+for string in one_byte_strs + two_byte_strs + four_byte_strs:
+    print(string)
+{% endraw %}
+```
+
+We'll start building YARA rules with these values in the next post.
+
+# Day 96 - AcidBox - Main Worker DLL Technique - SeLoadDriverPrivilege Stack String - Part 3
+Using the strings generated from the script in the previous post, we can start with the following naive attempt:
+```
+rule Heuristic_Stack_String_SeLoadDriverPrivilege_A {
+    meta:
+        description = "Detects the stack string SeLoadDriverPrivilege being loaded in a combination of 1, 2, and 4 byte chunks, not necessarily in order"
+
+    strings:
+        $one_byte_mov_S_stack = {C6 44 24 ?? 53}
+        $one_byte_mov_e_stack = {C6 44 24 ?? 65}
+        $one_byte_mov_L_stack = {C6 44 24 ?? 4c}
+        $one_byte_mov_o_stack = {C6 44 24 ?? 6f}
+        $one_byte_mov_a_stack = {C6 44 24 ?? 61}
+        $one_byte_mov_d_stack = {C6 44 24 ?? 64}
+        $one_byte_mov_D_stack = {C6 44 24 ?? 44}
+        $one_byte_mov_r_stack = {C6 44 24 ?? 72}
+        $one_byte_mov_i_stack = {C6 44 24 ?? 69}
+        $one_byte_mov_v_stack = {C6 44 24 ?? 76}
+        $one_byte_mov_P_stack = {C6 44 24 ?? 50}
+        $one_byte_mov_l_stack = {C6 44 24 ?? 6c}
+        $one_byte_mov_g_stack = {C6 44 24 ?? 67}
+        
+        $two_byte_mov_Se_stack = {66 C7 44 24 ?? 53 65}
+        $two_byte_mov_eL_stack = {66 C7 44 24 ?? 65 4c}
+        $two_byte_mov_Lo_stack = {66 C7 44 24 ?? 4c 6f}
+        $two_byte_mov_oa_stack = {66 C7 44 24 ?? 6f 61}
+        $two_byte_mov_ad_stack = {66 C7 44 24 ?? 61 64}
+        $two_byte_mov_dD_stack = {66 C7 44 24 ?? 64 44}
+        $two_byte_mov_Dr_stack = {66 C7 44 24 ?? 44 72}
+        $two_byte_mov_ri_stack = {66 C7 44 24 ?? 72 69}
+        $two_byte_mov_iv_stack = {66 C7 44 24 ?? 69 76}
+        $two_byte_mov_ve_stack = {66 C7 44 24 ?? 76 65}
+        $two_byte_mov_er_stack = {66 C7 44 24 ?? 65 72}
+        $two_byte_mov_rP_stack = {66 C7 44 24 ?? 72 50}
+        $two_byte_mov_Pr_stack = {66 C7 44 24 ?? 50 72}
+        $two_byte_mov_vi_stack = {66 C7 44 24 ?? 76 69}
+        $two_byte_mov_il_stack = {66 C7 44 24 ?? 69 6c}
+        $two_byte_mov_le_stack = {66 C7 44 24 ?? 6c 65}
+        $two_byte_mov_eg_stack = {66 C7 44 24 ?? 65 67}
+        $two_byte_mov_ge_stack = {66 C7 44 24 ?? 67 65}
+        
+        $four_byte_mov_SeLo_stack = {C7 44 24 ?? 53 65 4c 6f}
+        $four_byte_mov_eLoa_stack = {C7 44 24 ?? 65 4c 6f 61}
+        $four_byte_mov_Load_stack = {C7 44 24 ?? 4c 6f 61 64}
+        $four_byte_mov_oadD_stack = {C7 44 24 ?? 6f 61 64 44}
+        $four_byte_mov_adDr_stack = {C7 44 24 ?? 61 64 44 72}
+        $four_byte_mov_dDri_stack = {C7 44 24 ?? 64 44 72 69}
+        $four_byte_mov_Driv_stack = {C7 44 24 ?? 44 72 69 76}
+        $four_byte_mov_rive_stack = {C7 44 24 ?? 72 69 76 65}
+        $four_byte_mov_iver_stack = {C7 44 24 ?? 69 76 65 72}
+        $four_byte_mov_verP_stack = {C7 44 24 ?? 76 65 72 50}
+        $four_byte_mov_erPr_stack = {C7 44 24 ?? 65 72 50 72}
+        $four_byte_mov_rPri_stack = {C7 44 24 ?? 72 50 72 69}
+        $four_byte_mov_Priv_stack = {C7 44 24 ?? 50 72 69 76}
+        $four_byte_mov_rivi_stack = {C7 44 24 ?? 72 69 76 69}
+        $four_byte_mov_ivil_stack = {C7 44 24 ?? 69 76 69 6c}
+        $four_byte_mov_vile_stack = {C7 44 24 ?? 76 69 6c 65}
+        $four_byte_mov_ileg_stack = {C7 44 24 ?? 69 6c 65 67}
+        $four_byte_mov_lege_stack = {C7 44 24 ?? 6c 65 67 65}
+        
+    condition:
+        any of ($one_byte_*) and
+        any of ($two_byte_*) and 
+        any of ($four_byte_*)
+}
+```
+
+This is naive in the sense that it is looking for at least one of each type of stack loading (1, 2, and 4 byte), but it is looking for them anywhere in the file. While the 4 byte strings won't be as common, the other ones (especially the 1 byte strings) will be a lot more common, meaning we might run into some false positives, and as such we cannot rely on any one type on its own at this stage. We'll see if we can do any better in the next post.
+
+# Day 97 - AcidBox - Main Worker DLL Technique - SeLoadDriverPrivilege Stack String - Part 4
+Instead of looking for each type of stack string loading *anywhere* in a scanned file, let's be a bit more specific. In particular, how can we ensure that they are appearing in the same region as each other?
+
+My first thought for this is to introduce a for loop as follows:
+```
+rule Heuristic_Stack_String_SeLoadDriverPrivilege_B {
+    meta:
+        description = "Detects the stack string SeLoadDriverPrivilege being loaded in a combination of 1, 2, and 4 byte chunks, not necessarily in order"
+
+    strings:
+        $one_byte_mov_S_stack = {C6 44 24 ?? 53}
+        $one_byte_mov_e_stack = {C6 44 24 ?? 65}
+        $one_byte_mov_L_stack = {C6 44 24 ?? 4c}
+        $one_byte_mov_o_stack = {C6 44 24 ?? 6f}
+        $one_byte_mov_a_stack = {C6 44 24 ?? 61}
+        $one_byte_mov_d_stack = {C6 44 24 ?? 64}
+        $one_byte_mov_D_stack = {C6 44 24 ?? 44}
+        $one_byte_mov_r_stack = {C6 44 24 ?? 72}
+        $one_byte_mov_i_stack = {C6 44 24 ?? 69}
+        $one_byte_mov_v_stack = {C6 44 24 ?? 76}
+        $one_byte_mov_P_stack = {C6 44 24 ?? 50}
+        $one_byte_mov_l_stack = {C6 44 24 ?? 6c}
+        $one_byte_mov_g_stack = {C6 44 24 ?? 67}
+        
+        $two_byte_mov_Se_stack = {66 C7 44 24 ?? 53 65}
+        $two_byte_mov_eL_stack = {66 C7 44 24 ?? 65 4c}
+        $two_byte_mov_Lo_stack = {66 C7 44 24 ?? 4c 6f}
+        $two_byte_mov_oa_stack = {66 C7 44 24 ?? 6f 61}
+        $two_byte_mov_ad_stack = {66 C7 44 24 ?? 61 64}
+        $two_byte_mov_dD_stack = {66 C7 44 24 ?? 64 44}
+        $two_byte_mov_Dr_stack = {66 C7 44 24 ?? 44 72}
+        $two_byte_mov_ri_stack = {66 C7 44 24 ?? 72 69}
+        $two_byte_mov_iv_stack = {66 C7 44 24 ?? 69 76}
+        $two_byte_mov_ve_stack = {66 C7 44 24 ?? 76 65}
+        $two_byte_mov_er_stack = {66 C7 44 24 ?? 65 72}
+        $two_byte_mov_rP_stack = {66 C7 44 24 ?? 72 50}
+        $two_byte_mov_Pr_stack = {66 C7 44 24 ?? 50 72}
+        $two_byte_mov_vi_stack = {66 C7 44 24 ?? 76 69}
+        $two_byte_mov_il_stack = {66 C7 44 24 ?? 69 6c}
+        $two_byte_mov_le_stack = {66 C7 44 24 ?? 6c 65}
+        $two_byte_mov_eg_stack = {66 C7 44 24 ?? 65 67}
+        $two_byte_mov_ge_stack = {66 C7 44 24 ?? 67 65}
+        
+        $four_byte_mov_SeLo_stack = {C7 44 24 ?? 53 65 4c 6f}
+        $four_byte_mov_eLoa_stack = {C7 44 24 ?? 65 4c 6f 61}
+        $four_byte_mov_Load_stack = {C7 44 24 ?? 4c 6f 61 64}
+        $four_byte_mov_oadD_stack = {C7 44 24 ?? 6f 61 64 44}
+        $four_byte_mov_adDr_stack = {C7 44 24 ?? 61 64 44 72}
+        $four_byte_mov_dDri_stack = {C7 44 24 ?? 64 44 72 69}
+        $four_byte_mov_Driv_stack = {C7 44 24 ?? 44 72 69 76}
+        $four_byte_mov_rive_stack = {C7 44 24 ?? 72 69 76 65}
+        $four_byte_mov_iver_stack = {C7 44 24 ?? 69 76 65 72}
+        $four_byte_mov_verP_stack = {C7 44 24 ?? 76 65 72 50}
+        $four_byte_mov_erPr_stack = {C7 44 24 ?? 65 72 50 72}
+        $four_byte_mov_rPri_stack = {C7 44 24 ?? 72 50 72 69}
+        $four_byte_mov_Priv_stack = {C7 44 24 ?? 50 72 69 76}
+        $four_byte_mov_rivi_stack = {C7 44 24 ?? 72 69 76 69}
+        $four_byte_mov_ivil_stack = {C7 44 24 ?? 69 76 69 6c}
+        $four_byte_mov_vile_stack = {C7 44 24 ?? 76 69 6c 65}
+        $four_byte_mov_ileg_stack = {C7 44 24 ?? 69 6c 65 67}
+        $four_byte_mov_lege_stack = {C7 44 24 ?? 6c 65 67 65}
+        
+    condition:
+        for any of them : (
+            any of ($one_byte*) in (@ - 100 .. @ + 100) and
+            any of ($two_byte*) in (@ - 100 .. @ + 100) and
+            any of ($four_byte*) in (@ - 100 .. @ + 100)
+        )
+}
+```
+
+Here, we are using the fact that as we're iterating over anonymous strings (via `any of them`), we can reference each string's offset via the `@` operator. Further to this, we're saying that for each type of stack string loading (1, 2, and 4 bytes), we want to make sure that one of each type of them will appear "close enough" to each other (i.e. via the `any of .. in (@ - 100 .. @ + 100)` check).
+
+We could aim to make this rule stricter by changing the range check (e.g. `(@ - 50 .. @ + 50)`), or checking to see if there are multiple types of each stack string loading (e.g. `2 of them`).
+
+# Day 98 - AcidBox - Main Worker DLL Technique - SeLoadDriverPrivilege Stack String - Part 5
+To wrap up the discussion of this technique, let's think about if there is a way we can ensure that we don't have to look for every type of the stack string loading in the same sample. That is, maybe one variant will load this string using five 4-byte loads, and one 1-byte load, and not use the 2-byte load at all.
+
+My thought for this approach is to again use a for loop, and iterate over one of the types (I use the 4-byte version in this case), and see if one of the other types occurs immediately afterwards. Given that the length of the 4-byte move instruction is 8-bytes, the rule looks like this:
+```
+rule Heuristic_Stack_String_SeLoadDriverPrivilege_C {
+    meta:
+        description = "Detects the stack string SeLoadDriverPrivilege being loaded in a combination of 1, 2, and 4 byte chunks, not necessarily in order"
+
+    strings:
+        $one_byte_mov_S_stack = {C6 44 24 ?? 53}
+        $one_byte_mov_e_stack = {C6 44 24 ?? 65}
+        $one_byte_mov_L_stack = {C6 44 24 ?? 4c}
+        $one_byte_mov_o_stack = {C6 44 24 ?? 6f}
+        $one_byte_mov_a_stack = {C6 44 24 ?? 61}
+        $one_byte_mov_d_stack = {C6 44 24 ?? 64}
+        $one_byte_mov_D_stack = {C6 44 24 ?? 44}
+        $one_byte_mov_r_stack = {C6 44 24 ?? 72}
+        $one_byte_mov_i_stack = {C6 44 24 ?? 69}
+        $one_byte_mov_v_stack = {C6 44 24 ?? 76}
+        $one_byte_mov_P_stack = {C6 44 24 ?? 50}
+        $one_byte_mov_l_stack = {C6 44 24 ?? 6c}
+        $one_byte_mov_g_stack = {C6 44 24 ?? 67}
+        
+        $two_byte_mov_Se_stack = {66 C7 44 24 ?? 53 65}
+        $two_byte_mov_eL_stack = {66 C7 44 24 ?? 65 4c}
+        $two_byte_mov_Lo_stack = {66 C7 44 24 ?? 4c 6f}
+        $two_byte_mov_oa_stack = {66 C7 44 24 ?? 6f 61}
+        $two_byte_mov_ad_stack = {66 C7 44 24 ?? 61 64}
+        $two_byte_mov_dD_stack = {66 C7 44 24 ?? 64 44}
+        $two_byte_mov_Dr_stack = {66 C7 44 24 ?? 44 72}
+        $two_byte_mov_ri_stack = {66 C7 44 24 ?? 72 69}
+        $two_byte_mov_iv_stack = {66 C7 44 24 ?? 69 76}
+        $two_byte_mov_ve_stack = {66 C7 44 24 ?? 76 65}
+        $two_byte_mov_er_stack = {66 C7 44 24 ?? 65 72}
+        $two_byte_mov_rP_stack = {66 C7 44 24 ?? 72 50}
+        $two_byte_mov_Pr_stack = {66 C7 44 24 ?? 50 72}
+        $two_byte_mov_vi_stack = {66 C7 44 24 ?? 76 69}
+        $two_byte_mov_il_stack = {66 C7 44 24 ?? 69 6c}
+        $two_byte_mov_le_stack = {66 C7 44 24 ?? 6c 65}
+        $two_byte_mov_eg_stack = {66 C7 44 24 ?? 65 67}
+        $two_byte_mov_ge_stack = {66 C7 44 24 ?? 67 65}
+        
+        $four_byte_mov_SeLo_stack = {C7 44 24 ?? 53 65 4c 6f}
+        $four_byte_mov_eLoa_stack = {C7 44 24 ?? 65 4c 6f 61}
+        $four_byte_mov_Load_stack = {C7 44 24 ?? 4c 6f 61 64}
+        $four_byte_mov_oadD_stack = {C7 44 24 ?? 6f 61 64 44}
+        $four_byte_mov_adDr_stack = {C7 44 24 ?? 61 64 44 72}
+        $four_byte_mov_dDri_stack = {C7 44 24 ?? 64 44 72 69}
+        $four_byte_mov_Driv_stack = {C7 44 24 ?? 44 72 69 76}
+        $four_byte_mov_rive_stack = {C7 44 24 ?? 72 69 76 65}
+        $four_byte_mov_iver_stack = {C7 44 24 ?? 69 76 65 72}
+        $four_byte_mov_verP_stack = {C7 44 24 ?? 76 65 72 50}
+        $four_byte_mov_erPr_stack = {C7 44 24 ?? 65 72 50 72}
+        $four_byte_mov_rPri_stack = {C7 44 24 ?? 72 50 72 69}
+        $four_byte_mov_Priv_stack = {C7 44 24 ?? 50 72 69 76}
+        $four_byte_mov_rivi_stack = {C7 44 24 ?? 72 69 76 69}
+        $four_byte_mov_ivil_stack = {C7 44 24 ?? 69 76 69 6c}
+        $four_byte_mov_vile_stack = {C7 44 24 ?? 76 69 6c 65}
+        $four_byte_mov_ileg_stack = {C7 44 24 ?? 69 6c 65 67}
+        $four_byte_mov_lege_stack = {C7 44 24 ?? 6c 65 67 65}
+        
+    condition:
+        for any of ($four_byte_*) : (
+            any of ($one_byte_*, $two_byte_*) at @+8
+        )
+}
+```
+
+Again, there are more ways to modify this rule, such as including another for loop for each other type, or doing combinations of those, etc. There are usually multiple ways to write these more heuristic rules, and these are just my interpretations!
+
+# Day 99 - AcidBox Wrapup
+Despite spending many posts looking at [AcidBox](https://unit42.paloaltonetworks.com/acidbox-rare-malware/), I feel like there is still more that can be done! I haven't looked at the kernel module, or focused on any meta features of the main worker DLL.
+
+However, as I stated back at the start of the AcidBox analysis, I believe I have followed the approach I set out to do, which is as follows:
+- Accessibility - I've made my rule names and descriptions clear, while referencing the Palo Alto blog and hash values I used to write the rules with
+- Simplicity - I've stuck to a single idea per rule to try and keep the logic straightforward and understandable
+- Redundancy - by writing rules for strings, meta features, code, and techniques, we now have a collection of rules not just for multiple facets of AcidBox, but some heuristic rules that can be used to classify other samples as well
+
+## Private Rules
+You may not like that each rulename itself is very descriptive; instead, maybe all you care about is having a rule that tells you "is this AcidBox?". This could be done via [private YARA rules](https://yara.readthedocs.io/en/stable/writingrules.html#private-rules), by taking each rule that we've written for AcidBox in these posts, making them `private`, and then [referencing them in one main rule](https://yara.readthedocs.io/en/stable/writingrules.html#referencing-rules):
+```
+rule AcidBox {
+    condition:
+        any of (AcidBox*)
+}
+```
+
+You could then decide how strong you want this condition to be. Maybe you want to be confident that it is indeed AcidBox by relying on it covering multiple facets; so you could increase the condition to `2 of them`, or break it out further into checking specific combinations of rules (e.g. checking for error codes AND format strings, etc.).
+
+I hope these posts have shown how you can tackle writing rules for a malware family!
+
+# Day 100 - 100 Days of YARA Wrapup
+We have made it to day 100!! While I haven't written tonnes of YARA rules for this series, I'm proud of the fact that I've done a post each day.
+
+In these posts, I have covered:
+- The LNK module I wrote for YARA
+- Some of the fundamentals of strings and modifiers (plus using them in ways that may not be known)
+- YARA performance basics
+- Different command line options for YARA
+- A case study of writing rules for the AcidBox malware framework
+
+It has been fun to write these posts, and learn from others in the process! In particular, I've been learning a lot about performance through conversations on Twitter.
+
+Shoutout to [Greg](https://twitter.com/greglesnewich) for organising and starting this trend of 100 Days of YARA, and shoutout to all those who have done posts over the last few months (including [@shellcromancer](https://twitter.com/shellcromancer), [@Qutluch](https://twitter.com/Qutluch), [@dan__mayer](https://twitter.com/dan__mayer), [@wxs](https://twitter.com/wxs), [@notareverser
+](https://twitter.com/notareverser), [@stvemillertime](https://twitter.com/stvemillertime) - sorry to those who I haven't mentioned!). I can't wait to see what YARA will look like in 2024!
+
+## Bonus: Index of Coincidence
+As a last minute addition to `#100DaysofYARA`, I've made a pull request to add functions to the `math` module to implement [index of coincidence](https://en.wikipedia.org/wiki/Index_of_coincidence): [https://github.com/VirusTotal/yara/pull/1907](https://github.com/VirusTotal/yara/pull/1907)
+
+This index can be used as a rough measure of whether a plaintext string is English, or closer to being "random". For example, English text will have an index around `0.067`. You can play with this in [CyberChef](https://gchq.github.io/CyberChef/#recipe=Index_of_Coincidence%28%29).
+
+This could be useful for heuristic rules where you're using wildcards/regex strings to see what "structure" the strings have. For example, you could look for variables in scripting languages that are long and made up of "random" characters (i.e. they are obfuscated), which will likely have a lower index of coincidence value than regular variable names.
