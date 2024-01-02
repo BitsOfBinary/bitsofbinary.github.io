@@ -107,7 +107,17 @@ categories: yara
 ---
 
 ## Note
-This is a consolidated post of all 100 days of posts from 2023.
+This is a consolidated post of all 100 days of posts from 2023. These fall roughly into the following sections:
+- Days 1-4 - Introduction to YARA modules
+- Days 5-30 - Highlighting the YARA LNK module
+- Days 31-34 - Hex values in text string tips
+- Days 35-37 - YARA atoms
+- Days 38-45 - YARA math module
+- Days 46-57 - YARA command line flags
+- Days 58-75 - File classification in YARA
+- Days 76-77 - YARA rule writing philosophy
+- Days 78-99 - Greg's challenge: AcidBox framework rules
+- Day 100 - Wrapup, and index of coincidence
 
 # Day 1 - 100 Days of YARA
 I'm a big fan of [YARA](https://github.com/VirusTotal/yara). It's a tool that makes it possible for anyone interested to write static signatures, whether to classify specific strains of malware, perform broader threat hunting, or even parsing files.
