@@ -3,9 +3,16 @@ layout: post
 title: "100 Days of YARA - 2023"
 redirect_from:
   - /yara/2023/01/01/100daysofyara-day-1.html
+  - /yara/2023/01/02/100daysofyara-day-2.html
+  - /yara/2023/01/03/100daysofyara-day-3.html
+  - /yara/2023/01/04/100daysofyara-day-4.html
+  - /yara/2023/01/05/100daysofyara-day-5.html
 date: 2023-01-01 00:00:00 -0000
 categories: yara
 ---
+
+## Note
+This is a consolidated post of all 100 days of posts from 2023.
 
 # Day 1 - 100 Days of YARA
 I'm a big fan of [YARA](https://github.com/VirusTotal/yara). It's a tool that makes it possible for anyone interested to write static signatures, whether to classify specific strains of malware, perform broader threat hunting, or even parsing files.
@@ -38,3 +45,103 @@ rule CPU_Eater {
 ```
 
 And with that terrible rule out of the way, we can start moving on to more useful content from today onwards!
+
+# Day 2 - YARA Modules
+YARA is primarily designed to be used for efficient string matching (which it does very well). But one of its most powerful features (in my opinion) is the ability to create and use [modules](https://yara.readthedocs.io/en/stable/modules.html). These can be used for file parsing (such as [PE](https://yara.readthedocs.io/en/stable/modules/pe.html), [ELF](https://yara.readthedocs.io/en/stable/modules/elf.html) or [.NET](https://yara.readthedocs.io/en/stable/modules/dotnet.html) binaries), utility functions to aid in writing rules (such as [hashing algorithms](https://yara.readthedocs.io/en/stable/modules/hash.html), or [maths functions](https://yara.readthedocs.io/en/stable/modules/math.html)), to help debug your rules (e.g. via the [console module](https://yara.readthedocs.io/en/stable/modules/console.html)), or anything you can think of that can be written in C using YARA's API!
+
+![Available YARA modules](/assets/2023-01-02_default_yara_modules.png "Available YARA modules")
+
+Personally, I find myself using the PE module the most, which also happens to be the most built out default YARA module. I highly recommend reading through its documentation to see what it can do, and if there's something missing then raise an issue on GitHub! There are many active contributors to YARA who will be willing to try and implement it.
+
+I'll give some example rules using the PE module over the next couple of days to give some inspiration for how they can be used!
+
+# Day 3 - YARA Module Example 1 - Imphash and Rich Header Hash
+A simple, yet effective way of using the PE module to cluster samples is via hash values of specific components of the PE: namely, the [import hash](https://www.mandiant.com/resources/blog/tracking-malware-import-hashing) (or imphash) and the [rich header hash](https://www.giac.org/paper/grem/6321/leveraging-pe-rich-header-static-alware-etection-linking/169729).
+
+Both of these hash values can prove to be quite unique, and make it possible write YARA based off them. For example, if I take the SHA-256 hash `a37a290863fe29b9812e819e4c5b047c44e7a7d7c40e33da6f5662e1957862ab` from a [report by Mandiant on APT42](https://mandiant.com/resources/blog/apt42-charms-cons-compromises), we can write the following the rule which can be used to cluster further samples:
+```
+import "pe"
+import "hash"
+
+rule APT42_CHAIRSMACK_PE_Metadata {
+    meta:
+        description = "Detects samples of CHAIRSMACK based on unique PE metadata (i.e. imphash and rich PE header hash)"
+        reference = "https://mandiant.com/resources/blog/apt42-charms-cons-compromises"
+        hash = "a37a290863fe29b9812e819e4c5b047c44e7a7d7c40e33da6f5662e1957862ab"
+
+    condition:
+        pe.imphash() == "72f60d7f4ce22db4506547ad555ea0b1" or 
+        hash.md5(pe.rich_signature.clear_data) == "c0de41e45352714500771d43f0d8c4c3"
+}
+```
+
+[I've written a script](https://github.com/BitsOfBinary/yarabuilder-examples/blob/main/pe/yarabuilder_pe.py) that can generate rules from these values (making use of [pefile](https://github.com/erocarrera/pefile) which makes this parsing very straightforward!), and you can also get these values from other platforms that parse files, such as VirusTotal, AlienVault, MalwareBazaar, and so on!
+
+So next time you are about to write some rules for a PE binary, use the imphash and rich header hash for some quick and easy rules! These shouldn't be intended to replace more rigorous rules (i.e. based on strings, code segments, anomalies, etc.), but can build in some redundancy into your detection capabilities. 
+
+## Disclaimer
+As always with YARA rules, test to make sure your rules behave as expected! Blindly using an imphash or rich header hash might get you lots of false positives. E.g., the [imphash for a .NET PE binary](https://twitter.com/cyb3rops/status/1511725863414419459) (`f34d5f2d4577ed6d9ceec516c1f5a744`) will be the same across many different files, due to them all importing the same library (`mscoree.dll`) and the same function from that library (`_CorExeMain`).
+
+# Day 4 - YARA Module Example 2 - PDB Paths
+PDB files are generated by Visual Studio for the purposes of debugging. As such, binaries generated using the `Debug` option in Visual Studio will have a hardcoded path to where the PDB file lies. This path can reveal some useful information, such as the drive/username of the user that compiled the file, or internal names given to the project.
+
+All kinds of heuristics can be used on PDB paths (see Steve Miller's [Swear Engine](https://twitter.com/stvemillertime/status/1100399116876533760)), so it's worth trying to see what weird things you can find!
+
+```
+import "pe"
+
+rule Heuristic_PE_PDB_Self_Identifying_as_Malware {
+    meta:
+        description = "Detects files that identify themselves as malware"
+        
+    condition:
+        pe.pdb_path icontains "malware"
+}
+```
+
+Note: `icontains` is an operator that acts as a case-insensitive `contains`. If you've not seen this operator, I highly recommend checking out all the [operators listed in the YARA documentation](https://yara.readthedocs.io/en/stable/writingrules.html#conditions); there are some really useful ones!
+
+For a more practical example, we could consider the SessionManager IIS backdoor as [reported on by Kaspersky](https://securelist.com/the-sessionmanager-iis-backdoor/106868/). In the IoCs section of this report, they list the following PDB paths:
+- `C:\Users\GodLike\Desktop\t\t4\StripHeaders-master\x64\Release\sessionmanagermodule.pdb`
+- `C:\Users\GodLike\Desktop\t\t4\SessionManagerModule\x64\Release\sessionmanagermodule.pdb`
+- `C:\Users\GodLike\Desktop\t\t4\SessionManagerV2Module\x64\Release\sessionmanagermodule.pdb`
+- `C:\Users\GodLike\Desktop\t\t4\SessionManagerV3Module\x64\Release\sessionmanagermodule.pdb`
+- `C:\Users\GodLike\Desktop\t\t0\Hook-PasswordChangeNotify-master\HookPasswordChange\x64\Release\HookPasswordChange.pdb`
+
+As you can see, there are some strings across these PDBs, such as `\GodLike\`, `\t\t[0-9]\`, and `sessionmanagermodule.pdb`. It can sometimes take some trial and error to figure out which segments of a PDB path will be good to signature, but a first pass at writing a rule making use of the PE Module could be as follows:
+```
+import "pe"
+
+rule SessionManager_IIS_Backdoor_PDB_Path_Segments {
+    meta:
+        description = "Detects the SessionManager IIS backdoor based on some unique PDB path segments"
+        reference = "https://securelist.com/the-sessionmanager-iis-backdoor/106868/"
+        
+    condition:
+        pe.pdb_path contains "\\GodLike\\" or
+        pe.pdb_path matches /\\t\\t[0-9]\\/ or
+        pe.pdb_path endswith "\\sessionmanagermodule.pdb"
+}
+```
+Of course you could write a rule that looks for these strings in general within a sample without using the PE module, but the regex `\t\t[0-9]\` might not perform as efficiently on larger samples as opposed to just evaluating on the much smaller PDB path variable.
+
+# Day 5 - Introducing the YARA LNK module
+The [Windows Shell Link file format](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-shllink/16cb4ca1-9339-4d0c-a68d-bf1d6cc0f943) (or LNK) has been used by threat actors for years for malicious purposes (reference: [https://attack.mitre.org/techniques/T1204/001/](https://attack.mitre.org/techniques/T1204/001/))! Whether to download a next-stage payload, or set persistence on an infected system, the LNK file format can be quite versatile. It has also seen an uptick in use as part of initial infection chains due to Microsoft [disabling macros by default from documents downloaded from the internet](https://learn.microsoft.com/en-us/deployoffice/security/internet-macros-blocked).
+
+With all this combined, I wanted to [put together a YARA module for LNK files](https://github.com/VirusTotal/yara/pull/1732) to aid defenders in being able to triage, parse, and detect them.
+
+The next few weeks of posts will go into detail of how to use the module, and some rules that are possible to write using it. Along the way, we'll hopefully learn some cool features of the LNK file format that will be useful to consider in general (check out [Greg Lesnewich's](https://twitter.com/greglesnewich) **#100DaysofYARA** contributions so far [to see some cool LNK rules](https://github.com/g-les/100DaysofYARA/blob/main/100DaysofYARA_2023_Week1_LNKPark.ipynb)).
+
+## Shoutouts
+I wouldn't have been able to write this module without being able to see the source code of other YARA modules, and through the variety of currently available LNK parsers to help validate my output (such as [exiftool](https://exiftool.org/TagNames/LNK.html) or [Silas Cutler's](https://twitter.com/silascutler) [LnkParse](https://github.com/silascutler/LnkParse) Python module).
+
+Also shoutouts to [Ollie Whitehouse](https://twitter.com/ollieatnowhere) who gave me some great tips [to avoid bugs in my C code](https://twitter.com/ollieatnowhere/status/1556554996866596865) (which was very much needed!), and [Wesley Shields](https://twitter.com/wxs) for an early tip to make sure [I didn't do silly things dereferencing pointers in C](https://twitter.com/wxs/status/1483544341272576009).
+
+And of course, shoutout to [Victor Alvarez](https://twitter.com/plusvic) and all the YARA maintainers for creating and developing this awesome tool!
+
+## Acknowledgments
+While I think the LNK module will give a great deal of flexibility to writing YARA rules for LNK files, a great deal of work has already done by others to write rules for LNKs! Please go check out rules from the following authors:
+- Bart (@bartblaze): [https://github.com/bartblaze/Yara-rules/blob/master/rules/generic/LNK_Ruleset.yar](https://github.com/bartblaze/Yara-rules/blob/master/rules/generic/LNK_Ruleset.yar)
+- Florian Roth (@cyb3rops): [https://github.com/Neo23x0/signature-base/blob/05ef26965be930fade49e5dcba73b9fefc04757e/yara/gen_susp_lnk_files.yar](https://github.com/Neo23x0/signature-base/blob/05ef26965be930fade49e5dcba73b9fefc04757e/yara/gen_susp_lnk_files.yar)
+
+If you know of any other open source LNK YARA rulesets, please give me a shout and I can update this page with them! Check out the repo set up for **#100DaysofYARA** to see some further LNK rules available as well: [https://github.com/100DaysofYARA/2023](https://github.com/100DaysofYARA/2023)
