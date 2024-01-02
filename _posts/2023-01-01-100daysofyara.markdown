@@ -12,6 +12,27 @@ redirect_from:
   - /yara/2023/01/08/100daysofyara-day-8.html
   - /yara/2023/01/09/100daysofyara-day-9.html
   - /yara/2023/01/10/100daysofyara-day-10.html
+  - /yara/2023/01/11/100daysofyara-day-11.html
+  - /yara/2023/01/12/100daysofyara-day-12.html
+  - /yara/2023/01/13/100daysofyara-day-13.html
+  - /yara/2023/01/14/100daysofyara-day-14.html
+  - /yara/2023/01/15/100daysofyara-day-15.html
+  - /yara/2023/01/16/100daysofyara-day-16.html
+  - /yara/2023/01/17/100daysofyara-day-17.html
+  - /yara/2023/01/18/100daysofyara-day-18.html
+  - /yara/2023/01/19/100daysofyara-day-19.html
+  - /yara/2023/01/20/100daysofyara-day-20.html
+  - /yara/2023/01/21/100daysofyara-day-21.html
+  - /yara/2023/01/22/100daysofyara-day-22.html
+  - /yara/2023/01/23/100daysofyara-day-23.html
+  - /yara/2023/01/24/100daysofyara-day-24.html
+  - /yara/2023/01/25/100daysofyara-day-25.html
+  - /yara/2023/01/26/100daysofyara-day-26.html
+  - /yara/2023/01/27/100daysofyara-day-27.html
+  - /yara/2023/01/28/100daysofyara-day-28.html
+  - /yara/2023/01/29/100daysofyara-day-29.html
+  - /yara/2023/01/30/100daysofyara-day-30.html
+  - /yara/2023/01/31/100daysofyara-day-31.html
 date: 2023-01-01 00:00:00 -0000
 categories: yara
 ---
@@ -1006,3 +1027,379 @@ Not all LNKs come with with `ConsoleDataBlock` structure, so if we want to exper
 ![LNK with 1x1 pixel console window](/assets/2023-01-20_shortcut_lnk_with_1_pixel_window.png)
 
 In the next post we'll recreate Greg's rule using the LNK module.
+
+# Day 21 - LNK CONSOLE_PROPS - Part 2
+If we dump the module information using the `-D` flag of the LNK generated in the previous post, we'll see the following for the `CONSOLE_PROPS` section:
+```
+console_data
+    color_table
+            [0] = 789516
+            [1] = 14300928
+            [2] = 958739
+            [3] = 14521914
+            [4] = 2035653
+            [5] = 9967496
+            [6] = 40129
+            [7] = 13421772
+            [8] = 7763574
+            [9] = 16742459
+            [10] = 837142
+            [11] = 14079585
+            [12] = 5654759
+            [13] = 10354868
+            [14] = 10875385
+            [15] = 15921906
+    history_no_dup = 0
+    number_of_history_buffers = 4
+    history_buffer_size = 50
+    auto_position = 1
+    insert_mode = 1
+    quick_edit = 1
+    full_screen = 0
+    cursor_size = 25
+    face_name = "C\x00o\x00n\x00s\x00o"
+    font_weight = 400
+    font_family = 54
+    font_size = 1048576
+    window_origin_y = 0
+    window_origin_x = 0
+    window_size_y = 1
+    window_size_x = 1
+    screen_buffer_size_y = 1
+    screen_buffer_size_x = 1
+    popup_fill_attributes = 245
+    fill_attributes = 7
+    block_signature = 2684354562
+    block_size = 204
+has_console_data = 1
+```
+
+As always, I'd recommend reading through the LNK documentation to make sense of each field (the [docs I've generated for the LNK module](https://bitsofbinary.github.io/yara/2023/01/05/lnk_module_documentation.html) will also give details on each of these). But we're going to focus on recreating Greg's rule highlighted in the previous post.
+
+The fields of interest here are `window_size_x`, `window_size_y`, `screen_buffer_size_x` and `screen_buffer_size_y`, all of which are set to `1`. Therefore, we can recreate Greg's rule using the LNK module as follows:
+```
+import "lnk"
+
+rule Heuristic_LNK_SmallScreenSize {
+    meta:
+        description = "Adaptation of @greglesnewich's rule to find LNKs with a 1x1 console size"
+        
+    condition:
+        lnk.console_data.window_size_x == 1 and
+        lnk.console_data.window_size_y == 1 and
+        lnk.console_data.screen_buffer_size_x == 1 and
+        lnk.console_data.screen_buffer_size_y == 1
+}
+```
+Hopefully the LNK module makes this rule both more readable (Greg did a great job commenting his rule to be clear), and more accessible to those who don't want to go and comb through the LNK documentation like Greg and I both have!
+
+## What else can we do?
+As can be seen in the data available, there are lots of different variables in this structure, including data to do with fonts, number of buffers available, etc.
+
+Maybe we could also write a rule based on the window origin? I realised when re-reading the docs that the following variables in the `CONSOLE_PROPS` section are treated as signed integers:
+- `ScreenBufferSizeX`;
+- `ScreenBufferSizeY`;
+- `WindowSizeX`;
+- `WindowSizeY`;
+- `WindowOriginX`;
+- `WindowOriginY`;
+
+When manually editing the properties of the `cmd.exe` LNK, I could only get the window origin values to go down to `-5`. However, it still may be worth looking for LNKs that have a negative size window origin (maybe in an attempt to hide the LNK off the side of the main window?):
+```
+import "lnk"
+
+rule Heuristic_LNK_Negative_Window_Origin {
+    meta:
+        description = "Detects LNKs that have a negative value window origin location"
+        
+    condition:
+        lnk.console_data.window_origin_x < 0 and
+        lnk.console_data.window_origin_y < 0
+}
+```
+
+There's no doubt that there are more possibilities for detections/clustering of LNKs based on the `CONSOLE_PROPS` values, so I'd be interested to see what people come up with based on the data available!
+
+# Day 22 - LNK CONSOLE_FE_PROPS
+As you can hopefully see already, these `ExtraData` structure can provide a lot of useful data to work with from a threat hunting perspective. 
+
+Take the next section, `CONSOLE_FE_PROPS` for example. While this structure only really has one variable of interest, the `CodePage` which `specifies a code page language code identifier` may give away a crucial piece of information from an attribution/clustering perspective about the threat actor that generated it! I haven't come across this structure in practice yet, but it could prove to be a useful field to write some heuristic rules based on [different code page values](https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers?source=recommendations).
+
+If you would like to hunt for different LNKs with different `ExtraData` structures, each structure has a boolean variable that will indicate whether it is present or not. For example, `lnk.has_console_fe_data` will be set if the `CONSOLE_FE_PROPS` structure is in the LNK you are targeting.
+
+```
+import "lnk"
+
+rule Heuristic_LNK_With_ConsoleFEData {
+    meta:
+        description = "Detects LNK with ConsoleFEData structure"
+        
+    condition:
+        lnk.has_console_fe_data
+}
+```
+
+# Day 23 - LNK TRACKER_PROPS - Part 1
+An `ExtraData` section I want to focus on is `TRACKER_PROPS`; one which people who have tried writing YARA rules for LNKs have likely come up against before. The structure `specifies data that can be used to resolve a link target if it is not found in its original location when the link is resolved`. In particular, the field `MachineID` which `specifies the NetBIOS name of the machine where the link target was last known to reside` can be a very valuable IoC for writing rules for LNKs.
+
+The NetBIOS name is used as a human-friendly way of identifying Windows devices on a network. You can find out what you own NetBIOS name is by running `nbtstat -n`. 
+
+Luckily for us threat hunters, this field is left in by default in a lot of LNK files. This means that if a threat actor generates multiple LNK files from the same Windows instance (whether a physical device or a VM), this `MachineID` will be consistent across them if left unedited.
+
+I've used this value several times to cluster LNK files together. For an example of this, let's take an LNK from the IoCs of a [Palo Alto blog on Trident Ursa](https://unit42.paloaltonetworks.com/trident-ursa/) (more commonly known as Gamaredon Group) and write a rule based on the `MachineID`:
+```
+import "lnk"
+
+rule TridentUrsa_LNK_Machine_ID {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on a unique MachineID"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    condition:
+        lnk.tracker_data.machine_id == "desktop-farl139"
+}
+```
+
+Of course, this rule can also be written without the LNK module by relying just on strings. In a way, this is preferable, as you can hunt for this `MachineID` for LNKs attached to emails, dropped via HTML pages, etc.:
+```
+rule TridentUrsa_LNK_Machine_ID {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on a unique MachineID"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    strings:
+        $ = "desktop-farl139"
+        
+    condition:
+        any of them
+}
+```
+
+# Day 24 - LNK TRACKER_PROPS - Part 2
+While I think the `MachineID` is the most useful component of the `TRACKER_PROPS`, it isn't the only one we can use! There are two further variables called `Droid` and `DroidBirth` in this structure, which reprsent two GUID values to `used to find the link target with the Link Tracking service`.
+
+I find the LNK documentation to be rather lacking in explaining how these GUIDs actually work/what they represent... Eric Zimmerman's [LECmd tool](https://github.com/EricZimmerman/LECmd)  parses these values out as `VolumeDroid` and `FileDroid`, [which maybe gives a bit more context](https://github.com/EricZimmerman/LECmd/blob/50e7262eb636c6dc7749689716da0dafca26ae0c/LECmd/Program.cs#L1545), although these values aren't specified in the LNK documentation.
+
+Maybe these values are more well know to those who conduct forensics; but despite this, it is yet another value that could be useful in clustering LNK files together! (e.g. `lnk.tracker_data.droid_volume_identifier == "\\x40\\x78\\xC7\\x94\\x47\\xFA\\xC7\\x46\\xB3\\x56\\x5C\\x2D\\xC6\\xB6\\xD1\\x15"`)
+
+I elected in the LNK module to use the terms of `droid_volume` and `droid_file` to align with the LNK parsers, as I think these values are easier to reference.
+
+So taking that example Trident Ursa LNK from the previous post, we can also write a YARA rule for its Droid values as well:
+```
+import "lnk"
+
+rule TridentUrsa_LNK_Droid_Values {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on unique Droid GUIDs"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    condition:
+        lnk.tracker_data.droid_birth_file_identifier == "\xc6\x1f\x17\xb9\xcc\x07\xeb\x11\xb4#\x08\x00'.\x05\x1d" or
+        lnk.tracker_data.droid_birth_volume_identifier == "By\x013NQ\xa0G\xa1\xe0v\x7fh\xb9N\xa1" or
+        lnk.tracker_data.droid_file_identifier == "\xc6\x1f\x17\xb9\xcc\x07\xeb\x11\xb4#\x08\x00'.\x05\x1d" or
+        lnk.tracker_data.droid_volume_identifier == "By\x013NQ\xa0G\xa1\xe0v\x7fh\xb9N\xa1"
+}
+```
+
+# Day 25 - LNK Module Concessions
+I've already raised this point, but to address something worth talking about, the LNK module isn't always needed for the types of rules I'm showing. For example, you may have asked yourselves that for the two previous posts: "*Why do I need the LNK module to write these LNK rules? Can't I just use pure YARA?*". And you would be right! Here are the same two rules from the previous posts, but without needing the LNK module:
+```
+rule TridentUrsa_LNK_Machine_ID {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on a unique MachineID"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    strings:
+        $ = "desktop-farl139"
+    
+    condition:
+        any of them
+}
+
+rule TridentUrsa_LNK_Droid_Values {
+    meta:
+        description = "Rule to pick up LNKs used by Gamaredon Group/Trident Ursa based on unique Droid GUIDs"
+        hash = "f119cc4cb5a7972bdc80548982b2b63fac5b48d5fce1517270db67c858e9e8b0"
+        reference = "https://unit42.paloaltonetworks.com/trident-ursa/"
+        reference = "https://github.com/pan-unit42/iocs/blob/master/Gamaredon/Gamaredon_IoCs_DEC2022.txt"
+
+    strings:
+        $file_identifier = {c6 1f 17 b9 cc 07 eb 11 b4 23 08 00 27 2e 05 1d}
+        $volume_identifier = {42 79 01 33 4e 51 a0 47 a1 e0 76 7f 68 b9 4e a1}
+        
+    condition:
+        any of them
+}
+```
+
+These rules will pick up the same samples as the ones using the LNK module. In some ways you could argue that they're even simpler:
+- They don't need to import any modules
+- They can rely purely on strings
+- If you don't care about validating it's an LNK, you can have much simpler condition
+
+So why go to all the bother of writing a module for LNKs? Because I think that there is a lot of power in being able to manipulate these variables yourself.
+
+For example, if you wanted to write a rule looking for LNKs with a `MachineID` that doesn't start with `desktop-`, how would you do that using pure YARA? It's not so straightforward, whereas the LNK module means you can do this:
+```
+import "lnk"
+
+rule Heuristic_LNK_MachineID_Not_Starting_with_desktop {
+    meta:
+        description = "Detects LNK files that have a MachineID that doesn't start with 'desktop-'"
+        
+    condition:
+        not lnk.tracker_data.machine_id startswith "desktop-"
+}
+```
+
+The LNK module won't always be ideal for your use case; but with the data parsed and served to you for you to work with and write rules on, I think it can give you a lot of flexibility to writing rules of your liking.
+
+# Day 26 - LNK Overlay
+Capability I wanted to add to the LNK module was to allow for the creation of rules depending on if data is appended to an LNK! As such, there are two variables added:
+- `lnk.has_overlay` - A boolean value that is true if the LNK has extra data appended to it
+- `lnk.overlay_offset` - An unsigned integer representing the offset into the LNK file of where the overlay starts (only set if the has_overlay flag is true)
+
+This means it is possible to write rules based on looking for data from the end of an LNK file, such as the following:
+```
+import "lnk"
+
+rule Heuristic_LNK_with_PE_Appended {
+    meta:
+        description = "Detects an LNK file that has had a PE file appended to it"
+        
+    condition:
+        uint16(lnk.overlay_offset) == 0x5A4D
+}
+```
+
+While you could equally look for strings like `This program cannot be run in DOS mode` in an LNK to try and find embedded PE files, these variables allow you to be more precise. For example, if you wanted to look for LNKs that have encrypted data appended to them, you could use a rule like this:
+```
+import "lnk"
+import "math"
+
+rule Heuristic_LNK_with_High_Entropy_Data_Appended {
+    meta:
+        description = "Detects LNK files appended with high entropy data (i.e. likely encrypted data)"
+        
+    condition:
+        math.entropy(lnk.overlay_offset, filesize - lnk.overlay_offset) > 7.9
+}
+```
+
+# Day 27 - Malformed LNK Detection
+A more experimental field I've added to the LNK module is `lnk.is_malformed`. This is a boolean field set if the LNK module fails to parse a file that otherwise has a valid LNK header.
+
+Something that I learnt the hard way through writing the C code for the LNK module is about not trusting the data that is used as an input! If you assume a field is a particular size (either through a fixed length, or through parsing a field), then you can run into all kinds of vulnerabilities that could be exploited.
+
+So the main purpose of this field is that if an LNK were designed to purposefully try to cause exceptions in a parser, this is something I'd want to catch; both from the perspective of making the code fail gracefully, but also from a potential detection standpoint! The dream would be that this variable is able to find an LNK exploiting some kind of vulnerability in a parser (I'm realistic in my expectations that this won't happen, but I can dream). 
+
+The reality is that it'll almost certainly catch either broken LNKs, or just be a useful way of finding edge cases that the LNK module doesn't handle correctly.
+
+Anyway, here's a rule using this variable:
+```
+import "lnk"
+
+rule Heuristic_Malformed_LNK {
+    meta:
+        description = "Detects a malformed LNK"
+        
+    condition:
+        lnk.is_malformed
+}
+```
+
+# Day 28 - Future Considerations for the LNK Module
+Like any of the YARA modules, I don't see the LNK module as being "complete". There have been some fantastic additions to the PE module over the years which create many more opportunities for detection, so there's always more we can add.
+
+First up, I would like for the LNK module to be merged into YARA. This may be a big undertaking in of itself; I wouldn't want it to get merged in without proper review, as to not introduce any vulnerabilities, and to make sure that all the variables are laid out sensibly. However, if it gets merged in I will be happy. If it gets merged in, and available as a default module, I will be very happy.
+
+So what is there to build on top of the LNK module? To start with, there needs to be a little more work done to parse all structures. For example, `lnk.property_store_data` has not had a parser written up for it yet, so that would be next on my todo list.
+
+There are some structures in LNKs that I don't fully understand yet. For example, the `IDList` structures aren't that descriptively documented in the LNK documentation, but look to hold some useful data that we could parse for detection purposes.
+
+Several of the parsed fields are awkward to use in their current format, such as the `StringData` values which are in unicode. I'd like to figure out how better to surface those.
+
+And in general, I'd like to research what other variables would be useful to create in the LNK module. My motivation for this module was to make it as useful as possible for analysts trying to signature LNKs; if there's something you'd want added to make your life easier, I would love to hear about it!
+
+# Day 29 - Combining the LNK Module with the Console Module
+One of my earlier posts highlighted that you could print out all the variables parsed by the LNK module with the `-D` flag. This is really useful for getting a complete picture of a file, but would potentially need extra parsing to get the values you want. 
+
+Say you had a large set of LNK files and you wanted to get all the `MachineID` values out of them. Dumping all the information for every sample would be a bit excessive, and you may not want to dig out an LNK parser from elsewhere to work with.
+
+With YARA's recent [Console module](https://yara.readthedocs.io/en/stable/modules/console.html) addition, this task becomes a lot more straightforward! In short, the Console module will log messages to `stdout` via the `console.log()` API. There are several different formats you can apply to this function, which involve either just printing strings, or printing messages alongside what you print. `console.log()` will also always evaluate to try, so you can insert it into rules without the fear of breaking their conditions.
+
+So, to print all the `MachineID` values of a set of LNKs, we can use the following rule:
+```
+import "lnk"
+import "console"
+
+rule LNK_MachineID {
+    condition:
+        lnk.is_lnk and 
+        console.log("MachineID: ", lnk.tracker_data.machine_id)
+}
+```
+
+You'll need to do a little extra processing to get the results in a nice format (e.g. in this case using `grep "MachineID: "` to only parse out the `MachineID` values rather than the rule results), but hopefully this shows that YARA can be used for quick/straightforward file processing if you want it to!
+
+# Day 30 - Other Module Ideas
+I've spent many posts now describing the capability of the LNK module; a module which I believe will make YARA more versatile. So what other modules would be good ideas to develop/include in YARA? Here are a few ideas:
+- ZIP module
+- RAR module
+- ISO module
+- Assembler module
+- File identification module
+
+## ZIP/RAR module
+This may be a bit misleading, as I don't think YARA should be designed to decompress archive files. If you write YARA rules frequently, you've probably come up against the frustration of not being able to see in archives; but I think that's a limitation we have to accept. It would remove a lot of the efficiency of YARA to start doing decompression.
+
+However, a module to parse the metadata/file structure of these archives might be something very useful! That would open up possibilities to do some nice heuristics on compressed files without having to decompress them.
+
+## ISO module
+Same reasoning as the ZIP/RAR module ideas, but highlighting this separately given the increased use of ISO files by threat actors!
+
+## Assembler module
+This is a bit out there, but what if we could write rules using assembly language instead of hex bytes? Maybe this could make rules more readable? Maybe it could allow YARA to more easily convert bytes to assembly, and back again? Maybe it's a silly idea? Sometimes we won't know the answers unless we try!
+
+## File identification module
+If you're a malware analyst, chances are you'll love tools like [Detect It Easy](https://github.com/horsicq/Detect-It-Easy) (DIE). What if similar functionality was built into YARA itself? I know a lot of the signatures that DIE use could be converted directly into YARA rules, but this would potentially make YARA more convenient to use when writing signatures for specific file types.
+
+## Modules everywhere
+What ideas would you want to see for a YARA module?
+
+# Day 31 - YARA Tip - Hex values in text strings - Part 1
+Did you know that you can put specific hex values in YARA text strings?
+
+You can write YARA rules specifically for [hexadecimal strings](https://yara.readthedocs.io/en/stable/writingrules.html#hexadecimal-strings), as follows:
+```
+rule Hex_String_Test {
+    strings:
+        $ = {AB CD EF 00}
+        
+    condition:
+        any of them
+}
+```
+
+You can write an equivalent for this rule using text strings by prepending each byte with `\x`, as follows:
+```
+rule Hex_Chars_in_Text_String_Test {
+    strings:
+        $ = "\xAB\xCD\xEF\x00"
+        
+    condition:
+        any of them
+}
+```
+
+This rule is equivalent to the one above! It can be useful if you want to have a mixture of ASCII/non-ASCII characters in a text string (and some other benefits that I'll go into tomorrow).
+
+Thank you to David Cannings ([@edeca](https://twitter.com/edeca)) for teaching me this (among many other YARA tips/tricks over the years!).
