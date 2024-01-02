@@ -33,6 +33,34 @@ redirect_from:
   - /yara/2023/01/29/100daysofyara-day-29.html
   - /yara/2023/01/30/100daysofyara-day-30.html
   - /yara/2023/01/31/100daysofyara-day-31.html
+  - /yara/2023/02/01/100daysofyara-day-32.html
+  - /yara/2023/02/02/100daysofyara-day-33.html
+  - /yara/2023/02/03/100daysofyara-day-34.html
+  - /yara/2023/02/04/100daysofyara-day-35.html
+  - /yara/2023/02/05/100daysofyara-day-36.html
+  - /yara/2023/02/06/100daysofyara-day-37.html
+  - /yara/2023/02/07/100daysofyara-day-38.html
+  - /yara/2023/02/08/100daysofyara-day-39.html
+  - /yara/2023/02/09/100daysofyara-day-40.html
+  - /yara/2023/02/10/100daysofyara-day-41.html
+  - /yara/2023/02/11/100daysofyara-day-42.html
+  - /yara/2023/02/12/100daysofyara-day-43.html
+  - /yara/2023/02/13/100daysofyara-day-44.html
+  - /yara/2023/02/14/100daysofyara-day-45.html
+  - /yara/2023/02/15/100daysofyara-day-46.html
+  - /yara/2023/02/16/100daysofyara-day-47.html
+  - /yara/2023/02/17/100daysofyara-day-48.html
+  - /yara/2023/02/18/100daysofyara-day-49.html
+  - /yara/2023/02/19/100daysofyara-day-50.html
+  - /yara/2023/02/20/100daysofyara-day-51.html
+  - /yara/2023/02/21/100daysofyara-day-52.html
+  - /yara/2023/02/22/100daysofyara-day-53.html
+  - /yara/2023/02/23/100daysofyara-day-54.html
+  - /yara/2023/02/24/100daysofyara-day-55.html
+  - /yara/2023/02/25/100daysofyara-day-56.html
+  - /yara/2023/02/26/100daysofyara-day-57.html
+  - /yara/2023/02/27/100daysofyara-day-58.html
+  - /yara/2023/02/28/100daysofyara-day-59.html
 date: 2023-01-01 00:00:00 -0000
 categories: yara
 ---
@@ -1403,3 +1431,567 @@ rule Hex_Chars_in_Text_String_Test {
 This rule is equivalent to the one above! It can be useful if you want to have a mixture of ASCII/non-ASCII characters in a text string (and some other benefits that I'll go into tomorrow).
 
 Thank you to David Cannings ([@edeca](https://twitter.com/edeca)) for teaching me this (among many other YARA tips/tricks over the years!).
+
+# Day 32 - YARA Tip - Hex values in text strings - Part 2
+A benefit of writing hex values in text strings is that it allows you to apply modifiers to these strings. For example, if you wanted to look for all one-byte XOR values of `{AB CD EF 00}`, you would have to compute those values yourself and write a rule with all 255 versions of them:
+```
+rule One_Byte_XOR_Hex_Strings {
+    meta:
+        description = "Detects all one-byte XOR values of {AB CD EF 00}"
+    
+    strings:
+        $key_01 = {aa cc ee 01}
+        $key_02 = {a9 cf ed 02}
+        // ... truncated for size ...
+        $key_fe = {55 33 11 fe}
+        $key_ff = {54 32 10 ff}
+        
+    condition:
+        any of them
+}
+```
+
+Instead of going to all this effort yourself, and having a rule that has 255 lines of strings, you can use the [xor modifier](https://yara.readthedocs.io/en/stable/writingrules.html#xor-strings) like this:
+```
+rule One_Byte_XOR_Hex_Strings {
+    meta:
+        description = "Detects all one-byte XOR values of {AB CD EF 00}"
+    
+    strings:
+        $ = "\xAB\xCD\xEF\x00" xor(0x01-0xff)
+        
+    condition:
+        any of them
+}
+```
+
+Both of these rules are equivalent in what they achieve/the efficiency in which they achieve it (the `xor` modifier will still have to generate and check for each variation as specified), but the second one is much more succinct and requires a lot less effort on your part.
+
+# Day 33 - YARA Tip - Hex values in text strings - Part 3
+To really drive home the point about the use of hex values in text strings, here's a final example using the [Base64 modifier](https://yara.readthedocs.io/en/stable/writingrules.html#base64-strings) in YARA:
+```
+rule Reflective_Loader_Shellcode_Base64_Encoded {
+    meta:
+        description = "Detects Base64 encoded reflective loader shellcode stub, seen for example in Meterpreter samples"
+        hash = "ed48d56a47982c3c9b39ee8859e0b764454ab9ac6e7a7866cdef5c310521be19"
+        hash = "76d54a57bf9521f6558b588acd0326249248f91b27ebc25fd94ebe92dc497809"
+        hash = "1db32411a88725b259a7f079bdebd5602f11130f71ec35bec9d18134adbd4352"
+    
+    strings:
+        // pop     r10
+        // push    r10
+        // push    rbp
+        // mov     rbp, rsp
+        // sub     rsp, 20h
+        // and     rsp, 0FFFFFFFFFFFFFFF0h
+        // call    $+5
+        // pop     rbx
+        $ = "\x4D\x5A\x41\x52\x55\x48\x89\xE5\x48\x83\xEC\x20\x48\x83\xE4\xF0\xE8\x00\x00\x00\x00\x5B" base64 base64wide
+       
+    condition:
+        any of them
+}
+```
+
+Here, I have taken the shellcode stub seen in [Reflective loader](https://attack.mitre.org/techniques/T1620/) samples, such as Meterpreter payloads. You can obviously just search for this hex string to find the PE/shellcode payloads; however given those may possibly only ever end up in memory, it might be better to hunt for the loaders as well.
+
+So using the fact that we can use hex values in text strings, I've taken that shellcode stub, converted it to a text string, and applied the `base64` and `base64wide` modifiers to find samples which have this shellcode Base64 encoded in them, which will catch PowerShell loaders for example!
+
+This is one of those examples where you can take the string of one rule (i.e. finding Reflective Loader samples) and easily repurpose it for another one. You could also repeat this for one-byte XOR values too if you wanted!
+
+# Day 34 - Text strings vs. Hexadecimal strings
+I've just spent the last few posts suggesting how effective it can be converting hexadecimal strings into text strings. However, as is usually the case, there are tradeoffs to using this approach.
+
+You may have noticed already that the strings I used in the previous rules are "fixed"; there are no wildcards or variable chunks. Yet, these are the most useful features of using hexadecimal strings, as it allows you to write rules for code where you apply wildcards to mask off specific bytes to write more generic rules!
+
+Wildcards and variable chunks are not possible in YARA text strings; instead you would need to start using [regular expressions](https://yara.readthedocs.io/en/stable/writingrules.html#regular-expressions), but this also then [loses the ability to apply certain modifiers](https://yara.readthedocs.io/en/stable/writingrules.html#string-modifier-summary):
+![](/assets/2023-02-03_string_modifier_summary.png)
+
+In summary, there's usually going to be some tradeoff for the type of string you pick (text, hex, or regex) in YARA, but the more familiar you are with these tradeoffs, the better decisions you can make on which one to use!
+
+# Day 35 - YARA Atoms - Introduction
+As you start getting more advanced in your usage of YARA, you will want to make sure you're writing efficient rules. A good concept to understand in YARA is that of atoms, which are well explained in the code that implements them: [https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c](https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c)
+
+As the code points out:
+> Atoms are undivided substrings found in a regexps and hex strings.
+> ...
+> When searching for regexps/hex strings matching a file, YARA uses these atoms to find locations inside the file where the regexp/hex string could match.
+
+As such, if you are using using hex/regex strings which use wildcards/variable ranges, YARA will do some work behind the scenes to work out the best substrings to try and match the whole string you have specified. The code points out that sometimes this is straightforward, and you only need to search for one atom in a string to evaluate whether it matches. However, the more alternative sequences you add into your hex/regex strings (e.g. `{ab cd (ef | 00)}`), the more atoms may be needed to successfully evaluate a string match.
+
+YARA will create an atom tree which it will then use to try and optimise using the least number of high quality atoms for searching in files. In the next post, we'll discuss what makes good quality atoms.
+
+# Day 36 - YARA Atoms - Scoring atoms
+The YARA code helpfully describes the heuristics used to score atoms, and provides some examples: [https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c#L117](https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c#L117)
+
+It is worth noting before discussing this that by default the maximum atom length (set in the variable `YR_MAX_ATOM_LENGTH`) [is set to 4](https://github.com/VirusTotal/yara/blob/384265e85ec1c5e01355dca8b4089aab56be240d/libyara/include/yara/limits.h#L68), and as such the code discusses examples which are 4 bytes in length.
+
+In ascending order, the scores given to each byte in an atom are as follows:
+- Any fully masked byte (i.e. `0x??`): -10 points
+- Any partially masked byte (e.g. `0x0?`, `0x?F`): 4 points
+- Common bytes (i.e. `0x00`, `0x20`, `0xFF`): 12 points
+- Letters (i.e. `[A-Za-z]`): 18 points
+- All other bytes: 20 points
+
+An extra score is added at the end which consists of twice the number of unique bytes in the atom. There is also a hidden check which [heavily penalises atoms if all the bytes are equal and common](https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c#L179) (e.g. `{00 00 00 00}` is worth `12 + 12 + 12 + 12 + 2 = 50`, but then has `10 * atom->length = 40` subtracted, meaning it's only worth 10 points overal). 
+
+Example scores can be seen in the docs:
+![](/assets/2023-02-05_atom_scores.png)
+
+A warning threshold is set to 38 points (a set value found [here](https://github.com/VirusTotal/yara/blob/384265e85ec1c5e01355dca8b4089aab56be240d/libyara/include/yara/limits.h#L85), which is used to compare against atom qualities [here](https://github.com/VirusTotal/yara/blob/2b631d0ee47650923955398921c1ceccc3e38cb1/libyara/atoms.c#L201)). Any strings with the "best" atom falling below this threshold will yield a warning from YARA, which will look like: `string "$" may slow down scanning`
+
+# Day 37 - YARA Atoms - Writing rules using strings with good atoms
+So what's the takeaway from this discussion of atoms? You want good atoms in all your strings, and this will be focused around substrings that are of maximum length 4 and scored according to the rules specified in the previous post. 
+
+So to ensure you're writing efficient rules, make sure to:
+- Avoid strings with very short substrings (e.g. `{AB ?? ?? ?? CD}` will only be able to use `AB ?? ?? ??` or `?? ?? ?? CD` as an atom, which are below the threshold)
+- Avoid relying on short substrings of only common bytes (e.g. `{00 20}` is below threshold)
+- Avoid too many partial masked bytes (e.g. `{A? ?B C? ?D}` is below threshold)
+
+Instead, try to use strings that you know have good length atoms, and that have unique bytes.
+
+It's okay in some instances to have strings with bad atoms in them, provided that you have good atoms to make up for it. E.g. `{00 20}` is a bad string on its own, but `{AB CD EF 00 20}` is a good string, as YARA can use the atom `AB CD EF 00`.
+
+YARA will still work even if you have bad atom strings, but don't ignore those `string "$" may slow down scanning` warnings! Hunt down the rules which are causing issues, and see if you can fix those strings - it'll help you out in the long run.
+
+# Day 38 - Math Module - Intro
+So far we've discussed a few different types of YARA modules, mostly around file parsing. However, there are several modules that can be used on any file type, the [math module](https://yara.readthedocs.io/en/stable/modules/math.html) being one of them.
+
+It is described as such in the docs:
+> The Math module allows you to calculate certain values from portions of your file and create signatures based on those results.
+
+Personally I've found it trickier to write rules using these functions, as it may be quite circumstantial how you want to use them. Regardless, let's see what we can do with some of the available functions.
+
+To start with, I'd recommend reading Wesley Shields' ([@wxs](https://twitter.com/wxs)) intro guide to the math module which gives some great examples and explanations: [https://gist.github.com/wxsBSD/019740e83faa7a7206f4](https://gist.github.com/wxsBSD/019740e83faa7a7206f4)
+
+# Day 39 - Math Module - Entropy
+The function that I've seen used (and which I've used) the most from the math module, is `math.entropy()`. This returns the entropy of the input, which is described as "[information density of the contents of the file](https://fourmilab.ch/random/)". The higher number returned out (which goes up to a maximum of 8), this means the more dense it is with information, i.e. it is closer to being "random".
+
+As such, a high entropy can indicate "random" data, which in some scenarios could indicate that the data itself is encrypted (i.e. good encryption algorithms will make the ciphertext look as random as possible).
+
+Threat actors use encryption to obfuscate sections of malware (e.g. strings, configuration, next stages, etc.), meaning we can use entropy to try and find these. How you decide which parts of a file to scan for encrypted data is up to you. A rule that I've written before looking for possible samples possibly abusing [MS13-098](https://learn.microsoft.com/en-us/security-updates/securitybulletins/2013/ms13-098) can be found here: [https://github.com/PwCUK-CTO/TheSAS2021-Red-Kelpie/blob/main/yara/ms13_098.yar](https://github.com/PwCUK-CTO/TheSAS2021-Red-Kelpie/blob/main/yara/ms13_098.yar)
+
+In this case, I'm looking for extra data at the end of a Microsoft digital signature, and checking to see if the entropy is high; that is, there is potentially an encrypted payload at the end of it. 
+
+Looking for anomalies like this (i.e. high entropy in unexpected places) can lead to some good heuristic rules!
+
+# Day 40 - Math Module - Entropy of PE sections
+Some success of using the entropy function can be found in targeting specific sections of PE files. For example, as Tony Lambert points out in a blog, he uses a rule looking for encrypted resources in PE files: [https://forensicitguy.github.io/adventures-in-yara-hashing-entropy/#matching-on-resource-entropy](https://forensicitguy.github.io/adventures-in-yara-hashing-entropy/#matching-on-resource-entropy)
+
+Something that may help us to use the entropy function successfully is understanding the expected entropy of PE sections, to give us a rough idea of what is "normal".
+
+So, for example, using YARA itself I could run the following rule to print the entropy value of the `.text` section (i.e. the code section) of a PE file:
+```
+import "math"
+import "console"
+import "pe"
+
+rule PE_Entropy_dottext_Section {
+    condition:
+        for any section in pe.sections : (
+            section.name == ".text" and
+            console.log(math.entropy(section.raw_data_offset, section.raw_data_size))
+        )
+}
+```
+
+On windows, if I run this rule across `C:\Windows\system32`, I can print out each `.text` entropy and save off the values. I can copy and paste the results from this straight into CyberChef, and [using these formulas](https://gchq.github.io/CyberChef/#recipe=Regular_expression('User%20defined','%5B0-9%5D%5C%5C.%5B0-9%5D%7B6%7D',true,true,false,false,false,false,'List%20matches')Mean('Line%20feed')) get the average entropy of a PE in this folder.
+
+For my Windows installation, this mean value comes to `5.80` (with standard deviation `1.27`). This makes sense, as code itself can appear "quite" random, but will have some structure to it based on consistent use of specific assembly instructions.
+
+If I do the same for the `.rdata` section (i.e. the read-only data section which usually stores things like strings), the average is `3.54` (with standard deviation `1.46`). This value is a lot lower than the `.text` section, which is to be expected as strings are generally "less random" than code.
+
+# Day 41 - Math Module - Entropy Performance
+If you use the entropy function in your YARA rules, you may notice that the performance of these rules are slower in general compared to string only rules. This gets worse the bigger the data is that you are computing the entropy for. As such, it is undesirable to perform blind entropy checks against arbitrary files.
+
+Instead, it is better to be smarter with your entropy checks. Florian Roth recommends using the fact that functions like `math.entropy` will [only be evaluated in the condition if/when they need to](https://github.com/Neo23x0/YARA-Performance-Guidelines#conditions-and-short-circuit-evaluation) reorder your conditions to not run them in every instance.
+
+Another suggestion I remember seeing was that if you needed to compute entropy of a large amount of data, consider only checking the entropy of small chunks of the data instead. This may not give as accurate results, may give a performance boost! If you need more accurate results, you could first compute the entropy of a smaller chunk, and only then compute the entropy of the rest of the file.
+
+For example, here is the same rule from the previous post, but only computing entropy of the first 2048 bytes of the `.text` section (if the section is smaller than this it will just compute the whole thing):
+```
+import "math"
+import "console"
+import "pe"
+
+rule PE_Entropy_dottext_Section {
+    condition:
+        for any section in pe.sections : (
+            section.name == ".text" and
+            console.log(math.entropy(section.raw_data_offset, math.min(2048, section.raw_data_size)))
+        )
+}
+```
+
+# Day 42 - Math Module - Monte Carlo Pi
+The entropy function is the only measure of "randomness" in the math module (as an aside, see this Twitter thread started by [@notareverser](https://twitter.com/notareverser) that gives a more nuanced look on what the entropy is measuring: [https://twitter.com/notareverser/status/1623842328044527616](https://twitter.com/notareverser/status/1623842328044527616)). Another one to consider is the `math.monte_carlo_pi` [function](https://yara.readthedocs.io/en/stable/modules/math.html#c.monte_carlo_pi).
+
+This function will use a Monte Carlo method of [estimating the value of pi](https://academo.org/demos/estimating-pi-monte-carlo/) (`3.14159265359...`). This is done by taking the values which are input into the function, scaling them and placing them on a graph of a circle. By comparing the number of points that are inside vs. outside the circle, the value of pi can be estimated. The idea is that the more random points there are plotted in/out of the circle, the more accurate the estimation of pi will be. If the data isn't very "random" though, the estimation won't be as good.
+
+![Estimation of pi using Monte Carlo method](/assets/2023-02-11_monte_carlo_pi_estimate.png "Reference: https://academo.org/demos/estimating-pi-monte-carlo/")
+
+The output of `math.monte_carlo_pi` is not the estimated value of pi, but rather the percentage difference between the true value of pi compared to the estimated one. As such, the lower the output of the function, the closer the estimation to pi was, and the more "random" the data was. The higher the number, the further away from pi the estimation, so the less random it was.
+
+If I take a string that has no randomness, then we can see what a bad estimation looks like:
+```
+import "math"
+import "console"
+
+rule Bad_Monte_Carlo_Pi_Estimate {
+    condition:
+        console.log(math.monte_carlo_pi("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"))
+}
+```
+
+In this case, the result is `0.273240`, which is approximately `(4 - pi) / pi` (i.e. the estimated value of pi with this data is the value `4` - maybe good enough for engineering, not good enough for maths!). So this can be considered a bad estimation.
+
+If I do the same test but instead of for null I use `0xFF`:
+```
+import "math"
+import "console"
+
+rule Bad_Monte_Carlo_Pi_Estimate {
+    condition:
+        console.log(math.monte_carlo_pi("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"))
+}
+```
+
+Then the output for this is `1.000000` (i.e. pi would be computed to be 0, and so is 100% off the true value).
+
+Alternatively, if I take some random data (10,000 bytes worth) and repeat this test against a file with the random data in it:
+```
+import "math"
+import "console"
+
+rule Monte_Carlo_Pi_Estimate {
+    condition:
+        console.log(math.monte_carlo_pi(0, filesize))
+}
+```
+
+I get `0.019468`, i.e. much closer to zero. For context, on the same data I get the entropy result of `7.981289`.
+
+So in short, data the appears random/compressed etc. is going to have a low value from this function as it better estimates pi, whereas as very ordered data is going to be higher in value. More experimentation is need to figure out what kind of outputs are good at "predicting" certain types of data!
+
+# Day 43 - Math Module - Serial Correlation
+There's still one more function used to determine "randomness" in the math module! And that is `math.serial_correlation`. This computation compares how much each byte depends upon the previous byte(s).
+
+Whereas entropy and Monte Carlo pi had somewhat arbitrary upper and lower limits, the serial correlation will be between 0.0 and 1.0 (note: like with most of the math module output, it will be a floating point number), with closer to zero corresponding to more "random" data, and closer to one being more ordered data.
+
+I've found in practice that this value will be negative sometimes, so that is something that might need to be considered in calculations. E.g., applying the following rule to the same random data as in the previous post using the following rule:
+```
+import "math"
+import "console"
+
+rule Serial_Correlation {
+    condition:
+        console.log(math.serial_correlation(0, filesize))
+}
+```
+
+I got `-0.019990`, which feels like it's too big to be a floating point rounding error! So it's potentially worth applying two ranges checks to make sure you're not missing negative numbers.
+
+# Day 44 - Math Module - Randomness Functions Efficiency Comparison
+So we've got three different measures of "randomness" in the math module: entropy, Monte Carlo pi, and serial correlation. So, which one should you use?
+
+Disregarding the mathematical nuances of each function, a potential way of answering this is by determing which is the most efficient function to use. Using Florian Roth and Arnim Rupp's tool for measuring YARA performance, [Panopticon](https://github.com/Neo23x0/panopticon), I ran each function against a bunch of files I grabbed from `C:\Windows\system32` to get the following output:
+```
+[WARNING] Rule "entropy" slows down a search with 50 rules by 12.8011 % (Measured by best of 3 runs)
+[WARNING] Rule "monte_carlo" slows down a search with 50 rules by 35.2246 % (Measured by best of 3 runs)
+[WARNING] Rule "serial_correlation" slows down a search with 50 rules by 20.0926 % (Measured by best of 3 runs)
+```
+
+While this is somewhat anectodal, and results will vary between the baseline rules you use/samples you target/general reruns, this run of the tool shows that entropy performs the best, followed by serial correlation then Monte Carlo pi. 
+
+This is quite a gratifying result, as I (and many others) have used entropy as the main way of measuring "randomness" in YARA, so to know this is likely the most efficient of the functions means we don't have to change too much in our approach.
+
+However, hopefully what these posts/discussion around them have shown is that there is value in looking at these functions more closely to figure out how best they can be used! I know I will personally be trying to find new ways to use Monte Carlo pi and serial correlation in my rules going forward.
+
+# Day 45 - Math Module - Using min to bound loops
+The math module comes with several convenient functions, including `math.max()` and `math.min()`. While you could certainly use these for maths related operations, they can have some other uses within your conditions.
+
+In particular, if you're using loops in YARA, you may find your self in positions where performance may become an issue; especially if you have nested loops (**note:** in general, try to avoid nested loops). Take the following hypothetical, convoluted rule for instance:
+```
+rule Loop_Test {
+    strings:
+        $foo = "foo"
+        $bar = "bar"
+    
+    condition:
+        for any i in (1 .. #foo) : (
+            for any j in (1 .. #bar) : (
+                @foo[i] ^ @bar[j] == 0xdeadbeef
+            )
+        )
+}
+```
+
+This rule has a double for loop, looking for any instance where the addresses of two strings XOR to a specific value. The problem with this rule is that depending on how common the strings are, it may be searching for a long time! If you had say 500 occurances of `$foo` and 200 occurances of `$bar`, that's up to 100,000 iterations in total to evaluate.
+
+Instead, to ensure that the performance isn't terrible for a loop like this, consider using `math.min()` to limit the number of iterations:
+```
+import "math"
+
+rule Loop_Test {
+    strings:
+        $foo = "foo"
+        $bar = "bar"
+    
+    condition:
+        for any i in (1 .. math.min(#foo, 10)) : (
+            for any j in (1 .. math.min(#bar, 10)) : (
+                @foo[i] ^ @bar[j] == 0xdeadbeef
+            )
+        )
+}
+```
+This will ensure that only the first 10 instances of each string are compared, which is a max 100 iterations in comparison.
+
+Note that using this approach has the chance of missing many checks, so bear that in mind. In practice, your circumstances will change a lot between rules, but considering that you should bound these loops should be a priority for the sake of performance!
+
+# Day 46 - YARA Command Line Flags - Intro
+Let's look at something a bit different from talking about writing rules themselves, and instead think about how we **run** them. YARA comes with a variety of flags that can be added when running the tool from the command line. 
+
+Using the [pre-release for YARA 4.3.0](https://github.com/VirusTotal/yara/releases/tag/v4.3.0-rc1), the following commands are available:
+```
+YARA 4.3.0, the pattern matching swiss army knife.
+Usage: yara [OPTION]... [NAMESPACE:]RULES_FILE... FILE | DIR | PID
+
+Mandatory arguments to long options are mandatory for short options too.
+
+       --atom-quality-table=FILE           path to a file with the atom quality table
+  -C,  --compiled-rules                    load compiled rules
+  -c,  --count                             print only number of matches
+  -d,  --define=VAR=VALUE                  define external variable
+       --fail-on-warnings                  fail on warnings
+  -f,  --fast-scan                         fast matching mode
+  -h,  --help                              show this help and exit
+  -i,  --identifier=IDENTIFIER             print only rules named IDENTIFIER
+       --max-process-memory-chunk=NUMBER   set maximum chunk size while reading process memory (default=1073741824)
+  -l,  --max-rules=NUMBER                  abort scanning after matching a NUMBER of rules
+       --max-strings-per-rule=NUMBER       set maximum number of strings per rule (default=10000)
+  -x,  --module-data=MODULE=FILE           pass FILE's content as extra data to MODULE
+  -n,  --negate                            print only not satisfied rules (negate)
+  -N,  --no-follow-symlinks                do not follow symlinks when scanning
+  -w,  --no-warnings                       disable warnings
+  -m,  --print-meta                        print metadata
+  -D,  --print-module-data                 print module data
+  -M,  --module-names                      show module names
+  -e,  --print-namespace                   print rules' namespace
+  -S,  --print-stats                       print rules' statistics
+  -s,  --print-strings                     print matching strings
+  -L,  --print-string-length               print length of matched strings
+  -X,  --print-xor-key                     print xor key of matched strings
+  -g,  --print-tags                        print tags
+  -r,  --recursive                         recursively search directories
+       --scan-list                         scan files listed in FILE, one per line
+  -z,  --skip-larger=NUMBER                skip files larger than the given size when scanning a directory
+  -k,  --stack-size=SLOTS                  set maximum stack size (default=16384)
+  -t,  --tag=TAG                           print only rules tagged as TAG
+  -p,  --threads=NUMBER                    use the specified NUMBER of threads to scan a directory
+  -a,  --timeout=SECONDS                   abort scanning after the given number of SECONDS
+  -v,  --version                           show version information
+
+Send bug reports and suggestions to: vmalvarez@virustotal.com.
+```
+
+In the next few posts we'll talk about some tips for using the different command lines flags! I'll be running commands on Windows, which means the binary for YARA will be named `yara64` (you may just have a binary called `yara` if you're running on Linux/macOS).
+
+I'll aim to put these tips into the categories of utility (i.e. helping those who are writing the rules) and performance (i.e. options to make YARA perform better).
+
+First tip is to check on occasion that you're using an up to date version of YARA. You can check this with `yara64 --version`.
+
+# Day 47 - YARA Command line: Performance - Compiled YARA Rules
+One of the first flags you may spot for YARA is `-C` to `load compiled rules`. Before YARA can start evaluating rules against files, it will compile them into a format that can be read by the tool.
+
+You may have noticed that when you download/compile YARA that you have an additional binary called `yarac64` (or just `yarac`), which has the following command line arguments:
+```
+Usage: yarac [OPTION]... [NAMESPACE:]SOURCE_FILE... OUTPUT_FILE
+
+       --atom-quality-table=FILE        path to a file with the atom quality table
+  -d,  --define=VAR=VALUE               define external variable
+       --fail-on-warnings               fail on warnings
+  -h,  --help                           show this help and exit
+       --max-strings-per-rule=NUMBER    set maximum number of strings per rule (default=10000)
+  -w,  --no-warnings                    disable warnings
+  -v,  --version                        show version information
+
+Send bug reports and suggestions to: vmalvarez@virustotal.com
+```
+
+As such, you can use this to pre-compile your rules for YARA. There are some downsides to this, including:
+- the compiled rules will only work with the version of YARA that they've been compiled for
+- the filesize of the compiled rules will be signficantly bigger than the original rule files
+- you won't be able to YARA rules directly in the compiled ruleset
+
+However, the big advantages come into play if you're constantly running YARA rules against samples (i.e. in some kind of automated fashion), as by compiling them in advance you are saving a lot of processing that YARA needs to do each time it is run. 
+
+# Day 48 - Decompiling YARA rules
+As an aside, don't consider it impossible for the compiled YARA rulesets to be "decompiled". For example, Hilko Bengen ([@_hillu](https://twitter.com/_hillu)) gave a great talk on the YARA compiler itself (reference: [https://www.youtube.com/watch?v=zPRLxNq8XbQ](https://www.youtube.com/watch?v=zPRLxNq8XbQ)) which included tools for [disassembling YARA bytecode](https://github.com/hillu/yara-rules-re). There is also an old (archived) project for [decompiling YARA rules](https://github.com/jbgalet/yaradec), although I haven't tested whether this still works as expected.
+
+Why is this important? If you're using open source rules to scan files, then this isn't going to be a concern for you. However, if you're running proprietary rulesets, and assume that compiling them means they cannot be returned to source code, then that is a bad assumption. If someone really wanted to, they could go to the effort of reversing them.
+
+# Day 49 - YARA Command line: Performance - Timeout
+If you don't want your YARA rules to run for too long, you can manually provide a timeout setting with the `-a` flag. From my testing, this value in seconds will give a timeout to **all** rules input. If you're running against an individual file, each rule will sequentially evaluate against the file, and stop if the timeout is reached. If running against a directory, then files will be processed one at a time, evaluating each rule, and will stop if the timeout is reached. 
+
+Therefore, you may get partial results against directories/subdirectories, but the timeout will cut off all further processing once reached.
+
+This flag is useful if, for instance, you want to run against a live system and don't want to tank the CPU for too long, but only use it if you're comfortable not getting a full set of results if the timeout is reached!
+
+# Day 50 - YARA Command line: Performance - Fast scan
+The `-f` flag enables YARA to run in `fast scan` mode, but it isn't immediately clear what this means. However, there is some documentation on this feature (search for `SCAN_FLAGS_FAST_MODE` on the following page): [https://yara.readthedocs.io/en/stable/capi.html?highlight=fast#scanning-data-1](https://yara.readthedocs.io/en/stable/capi.html?highlight=fast#scanning-data-1)
+
+As the docs point out:
+> The SCAN_FLAGS_FAST_MODE flag makes the scanning a little faster by avoiding multiple matches of the same string when not necessary. Once the string was found in the file it's subsequently ignored, implying that you'll have a single match for the string, even if it appears multiple times in the scanned data. This flag has the same effect of the -f command-line option described in Running YARA from the command-line.
+
+For strings that are common and appear multiple times in files, this flag will speed things up/[possibly prevent errors](https://twitter.com/plusvic/status/1248170739854958592). However, as the description mentions, this comes at a cost: `implying that you'll have a single match for the string, even if it appears multiple times in the scanned data`
+
+As such, any rules that rely on the count of a string (i.e. the count of string `$test` can be obtained via `#test`), or iterating over offsets to string (i.e. the 5th occurance of `$test` would be `@test[5]` - yes, [they are indexed from 1](https://yara.readthedocs.io/en/stable/writingrules.html#string-offsets-or-virtual-addresses)) will not properly evaluate.
+
+## Edit
+**CORRECTION**: Wesley Shields pointed out a threat to me that explains some of the nuance of fast mode better: [https://twitter.com/wxs/status/1627278414926184450](https://twitter.com/wxs/status/1627278414926184450)
+
+In short, fast mode will still mean rules evaluate correctly no matter what condition you use; it's more about the fact that YARA won't need to store references to every string depending on the condition, which can save some processing at the expense of not displaying those strings to the user.
+
+For example, the following rule:
+```
+rule test {
+    strings:
+        $foo = "foo"
+        
+    condition:
+        any of them
+}
+```
+when run on the following data: 
+```
+foobarfoo
+```
+will give the following output with `-s`:
+```
+0x0:$foo: foo
+0x6:$foo: foo
+```
+and the following with `-f -s`:
+```
+0x0:$foo: foo
+```
+
+As you can see, it doesn't return the second instance of `foo`. But, if we update the rule to the following:
+```
+rule test {
+    strings:
+        $foo = "foo"
+        
+    condition:
+        #foo == 2
+}
+```
+it will still evaluate correctly whether in fast mode or not, and give the following strings as output:
+```
+0x0:$foo: foo
+0x6:$foo: foo
+```
+
+I.e. you're still running in fast mode, but getting every string returned, as the condition still needs to rely on the count of them!
+
+Thank you Wesley for pointing this out, I feel like I understand this mode a lot better now!
+
+# Day 51 - YARA Command line: Performance - Skip larger
+If you're running YARA rules over a large file system, a challenge you may run into is that you may scan very large files. While this may be what you want, depending on your rules this could also lead to a lot of processing being necessary.
+
+Since YARA v4.2.0, there is a `--skip-larger` (or `-z`) flag, which can be used to ignore files past a specified size when running in recursive mode (i.e. with the `-r` flag). If you use this flag, for every file larger than the specified size you will get an error message sent to `stderr` with the following format:
+```
+skipping FILENAME (SIZE_OF_FILE bytes) because it's larger than SPECIFIED_SKIP_SIZE bytes.
+```
+
+Consider using this to save some processing time, accepting the fact that you might miss some files in the process!
+
+# Day 52 - YARA Command line: Performance - Multi-threading
+When scanning directories (or scanning a list of files), YARA can run in a multi-threading mode. You can use the `--threads` (or `-p`) to specify the maximum number of threads you want to use.
+
+The maximum number of threads is set in the variable `YR_MAX_THREADS`, which is set to `32` by default. In reading the code, it appears that YARA will [set the default threads count to be that of the maximum](https://github.com/VirusTotal/yara/blob/68d9b6559af7cb22df3abdfb4531c932836fb5b5/cli/yara.c#L166), so this flag is more so used for if you want to set a lower amount of threads to run (which may be advisable if you're running on a live system that you don't want to slow down too much, for example).
+
+# Day 53 - YARA Command line: Performance - Memory scanning
+Did you know that YARA scan be used to scan the memory of a system? You don't need to necessarily aquire a copy of the memory to run rules over it; rather you can specify the process ID (PID) as specified in the usage:
+```
+Usage: yara [OPTION]... [NAMESPACE:]RULES_FILE... FILE | DIR | PID
+```
+
+You can limit the size of the largest memory chunk with the `--max-process-memory-chunk=NUMBER` flag (which by default is 1GB).
+
+In practice I don't find myself using YARA to scan memory that often, but it's a nice option to have, especially if you want to test things like in-memory config extraction!
+
+# Day 54 - YARA Command line: Utility - Count flag
+A flag I forget about a lot is the `-c` flag (note that it's lowercase this time). Rather than displaying the rulename + filepath of each rule hit, it will instead display each file that has been scanned, and return the number of rules that have hit against it.
+
+While you lose the context of which rules have evaluated to true against which files, it can be a useful way of getting an idea of if you're missing any samples with the rules you've written. E.g. if you've collected your samples of interest in a specific directory, and all your rules in one file, you can quickly an easily see what samples you're missing rules for/still need to signature.
+
+# Day 55 - YARA Command line: Utility - Negate
+A really useful flag to use when testing whether your rules are working properly is the negate flag. By using `--negate` (or `-n`), YARA will return every rule that **doesn't** hit on a file.
+
+I use this option for if I'm testing a rule, and can't figure out why a more complicated condition isn't hitting on a file. If the rule doesn't hit, I combine `-n` with `-s` to see which string are found in the file, which means I can then go and fix the ones that potentially aren't working as expected.
+
+# Day 56 - YARA Command line: Utility - String lengths
+So you probably know you can displayed matched strings with the `-s` flag. But did you know, that you can display the matched string lengths with with `--print-string-length` (or `-L`) flag?
+
+This is a pretty cool flag, that may not have immediately understandable benefits. You might be thinking "don't I already know the length of my strings?". And the answer is yes, but not in all cases. In fact, if you've used wildcards/ranges in hex/regex strings, the length of your string may be variable!
+
+You can retrieve the [length of a matched string](https://yara.readthedocs.io/en/stable/writingrules.html#match-length) by using the `!` operator (i.e. the first occurance string of `$s` will have length `!s[1]`).
+
+# Day 57 - YARA Command line: Utility - Scan list
+If you want to use YARA to scan only a specific set of files, rather than every file/subdirectory of directory, you can use the `--scan-list` flag. Here you can pass individual files, or directories themselves, as a newline separated list, which YARA will then run through.
+
+This could be really useful if you want to do a targeted scan of an endpoint. Be pre-determining the directories you want to scan (or not scan), this could make your life a lot easier!
+
+At the time of writing, I'm having some issues getting this to work as expected on Windows, but it works fine on Linux. Might be on that needs a pull request to fix for Windows!
+
+# Day 58 - Accessing data at specified offsets
+A feature of YARA I've used a few times so far in these posts are the operations to do comparisons of (unsigned) integer values at specific offsets in files. You can see the documentation for this feature here: [https://yara.readthedocs.io/en/stable/writingrules.html#accessing-data-at-a-given-position](https://yara.readthedocs.io/en/stable/writingrules.html#accessing-data-at-a-given-position)
+
+As highlighted in the docs, there are several types of functions you can use to access data at certain offsets:
+![](/assets/2023-02-27_int_func_summaries.png)
+
+In short, you can either access signed or unsigned integer values, which are either of size:
+- 8-bits (i.e. 1 byte)
+- 16-bits (i.e. 2 bytes)
+- 32-bits (i.e. 4 bytes)
+
+For each variation of these, you can also choose the endianess (that is, the order of the bytes). By default, little endian is used (i.e. the least signficant byte is evaluated first), but you can add `be` into the function to change it to big endian. Personally, I prefer using big endian where possible, as that is as if bytes are in the order that they appear in the file.
+
+## Why is this useful?
+Whereas YARA is primarily designed for string matching, the fact you can access data at certain offsets means you can be very specific in how you write your rules. In particular, it makes it possible to be specific in the types of files you want to run your rules over, based on checking file headers. We'll spend a few posts discussing this.
+
+# Day 59 - File classification: PE files
+If you write a lot of YARA rules for Windows malware, you will get very used to writing this condition.
+
+As can be [seen in the docs](https://yara.readthedocs.io/en/stable/writingrules.html#accessing-data-at-a-given-position), the following rule can be used to identify portable executable (PE) files, which is the executable file format for Windows:
+```
+rule IsPE
+{
+    condition:
+        // MZ signature at offset 0 and ...
+        uint16(0) == 0x5A4D and
+        // ... PE signature at offset stored in MZ header at 0x3C
+        uint32(uint32(0x3C)) == 0x00004550
+}
+```
+
+This rule is very useful in how descriptive it is. The comments explain the reasoning behind the checks.
+
+The first check is looking for the bytes `MZ`, which is the start of the [DOS stub](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#ms-dos-stub-image-only) (an artefact of MS-DOS). If you read the PE documentation that I've linked to, you'll see that it specifies that at offset `0x3c` is a pointer to where the PE header begins, which should start with the bytes `PE\x00\x00`. As such, this is why the second check uses two `uint32` calls; one to get the pointer, and the other to get the data pointed to.
+
+If you look closely at the rule, you'll realise that both the `MZ` and `PE` strings are reversed. This is because, as highlighted in the previous post, the default for these functions is little endian. So you could equivalently write the rule as:
+```
+rule IsPE
+{
+    condition:
+        // MZ signature at offset 0 and ...
+        uint16be(0) == 0x4D5A and
+        // ... PE signature at offset stored in MZ header at 0x3C
+        uint32be(uint32(0x3C)) == 0x50450000
+}
+```
+**Note**: I can't change the inner `uint32` comparison as that pointer will be little endian; but I can change the comparisons.
+
+Why would you choose one over the other? It's really a matter of preference. The only technical limitation is that the big endian versions were only added in [YARA v3.2.0](https://github.com/VirusTotal/yara/releases/tag/v3.2.0), which was released in November 2014. Ideally, you should be using the latest version, but I believe some tools out there still rely on older versions of YARA.
