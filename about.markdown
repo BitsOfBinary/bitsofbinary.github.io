@@ -11,6 +11,9 @@ I have worked in threat intelligence since 2017, specialising in threat actor tr
 - [What IIS that malware?](https://www.pwc.com/gx/en/issues/cybersecurity/cyber-threat-intelligence/what-iis-that-malware.html) (November 2023)
 
 ### Conference talks
+- [Service a la Russia: A Tasting Course of Intelligence Tradecraft and Russia-based Threat Actor Case Studies](https://cyberthreat.io/) (November 2025)
+- [From Data to Decisions: The Importance of Actionable Threat Intelligence](https://bigdatabelfast.com/big-data-belfast-2025/) (October 2025)
+- [Countering Threat Intelligence Nihilism](https://detect.london/) (March 2025)
 - [Knowledge IIS power](https://github.com/PwCUK-CTO/labscon-2024-knowledge-iis-power) (September 2024)
 - [Brave New World: Understanding the developing techniques of threat actors](https://www.crestcon.org/europe/attend-schedule/) (May 2023)
 - [Learning to ChaCha with APT41](https://securelist.com/webinars/sas-2021-learning-to-chacha-with-apt41/) (September 2021)
